@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>股票資料展示</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <style>
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 20px;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: center;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+      select,
+      input[type="date"],
+      button {
+        font-size: 16px;
+        margin: 5px;
+        padding: 5px;
+      }
+      #chart {
+        max-width: 1000px;
+        margin: 20px auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>股票資料</h1>
+
+    <!-- 蠟燭圖區域 -->
+    <div
+      id="chart"
+      style="max-width: 1200px; height: auto; margin: 20px auto"
+    ></div>
+
+    <!-- 選擇條件 -->
+    <label for="symbolSelect">股票代號：</label>
+    <select id="symbolSelect">
+      <option value="">請選擇</option>
+      <option value="AAPL">AAPL</option>
+      <option value="AMGN">AMGN</option>
+      <option value="AXP">AXP</option>
+      <option value="BA">BA</option>
+      <option value="CAT">CAT</option>
+      <option value="CRM">CRM</option>
+      <option value="CSCO">CSCO</option>
+      <option value="CVX">CVX</option>
+      <option value="DIS">DIS</option>
+      <option value="GS">GS</option>
+      <option value="HD">HD</option>
+      <option value="HON">HON</option>
+      <option value="IBM">IBM</option>
+      <option value="INTC">INTC</option>
+      <option value="JNJ">JNJ</option>
+      <option value="JPM">JPM</option>
+      <option value="KO">KO</option>
+      <option value="MCD">MCD</option>
+      <option value="MMM">MMM</option>
+      <option value="MRK">MRK</option>
+      <option value="MSFT">MSFT</option>
+      <option value="NKE">NKE</option>
+      <option value="PG">PG</option>
+      <option value="TRV">TRV</option>
+      <option value="UNH">UNH</option>
+      <option value="V">V</option>
+      <option value="VZ">VZ</option>
+      <option value="WBA">WBA</option>
+      <option value="WMT">WMT</option>
+    </select>
+
+    <label>起始日：</label>
+    <input type="date" id="startDate" />
+
+    <label>結束日：</label>
+    <input type="date" id="endDate" />
+
+    <button onclick="loadStocks()">查詢</button>
+
+    <!-- 資料表格 -->
+    <table id="stockTable">
+      <thead>
+        <tr>
+          <th>日期</th>
+          <th>股票代號</th>
+          <th>開盤價</th>
+          <th>最高價</th>
+          <th>最低價</th>
+          <th>收盤價</th>
+          <th>成交量</th>
+        </tr>
+      </thead>
+      <tbody id="stockBody"></tbody>
+    </table>
+
+    <script>
+      const SUPABASE_URL = "https://cqtfffupninvnbxkbgjv.supabase.co";
+      const SUPABASE_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxdGZmZnVwbmludm5ieGtiZ2p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3NDY4NjEsImV4cCI6MjA2NjMyMjg2MX0.joUVlX5EZdoL1XGzR2TIOnV6VfWhntKQzy7KXxcCbH0";
+
+      const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      let chart; // 儲存 ApexCharts 實例
+
+      async function loadStocks() {
+        const symbol = document.getElementById("symbolSelect").value;
+        const start = document.getElementById("startDate").value;
+        const end = document.getElementById("endDate").value;
+
+        if (!symbol || !start || !end) {
+          alert("請選擇股票代號與日期區間");
+          return;
+        }
+
+        const { data, error } = await client
+          .from("stocks")
+          .select("*")
+          .eq("symbol", symbol)
+          .gte("date", start)
+          .lte("date", end)
+          .order("date", { ascending: true });
+
+        const tbody = document.getElementById("stockBody");
+        tbody.innerHTML = "";
+
+        if (error) {
+          console.error("查詢失敗：", error);
+          return;
+        }
+
+        if (data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7">沒有資料</td></tr>`;
+          return;
+        }
+
+        // 更新表格
+        data.forEach((row) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${row.date}</td>
+            <td>${row.symbol}</td>
+            <td>${parseFloat(row.open).toFixed(3)}</td>
+            <td>${parseFloat(row.high).toFixed(3)}</td>
+            <td>${parseFloat(row.low).toFixed(3)}</td>
+            <td>${parseFloat(row.close).toFixed(3)}</td>
+            <td>${parseFloat(row.volume).toFixed(3)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        // 建立 K 線圖資料格式
+        const chartData = data.map((row) => ({
+          x: new Date(row.date),
+          y: [
+            parseFloat(row.open).toFixed(3),
+            parseFloat(row.high).toFixed(3),
+            parseFloat(row.low).toFixed(3),
+            parseFloat(row.close).toFixed(3),
+          ].map(Number), // 確保 y 是數值而不是字串
+        }));
+
+        // 如果已經有圖表先銷毀
+        if (chart) {
+          chart.destroy();
+        }
+
+        const prices = data.flatMap((row) => [
+          parseFloat(row.high),
+          parseFloat(row.low),
+        ]);
+        const minY = parseFloat((Math.min(...prices) * 0.999).toFixed(3));
+        const maxY = parseFloat((Math.max(...prices) * 1.001).toFixed(3));
+
+        // 初始化或更新 ApexCharts
+        const options = {
+          chart: {
+            type: "candlestick",
+            height: 600,
+          },
+          title: {
+            text: `${symbol} K 線圖`,
+            align: "left",
+          },
+          xaxis: {
+            type: "datetime",
+          },
+          yaxis: {
+            min: minY,
+            max: maxY,
+            tooltip: { enabled: true },
+          },
+          series: [
+            {
+              data: chartData,
+            },
+          ],
+        };
+
+        chart = new ApexCharts(document.querySelector("#chart"), options);
+        chart.render();
+      }
+    </script>
+  </body>
+</html>
