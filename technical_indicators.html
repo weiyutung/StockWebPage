@@ -85,6 +85,36 @@
 
     <button onclick="loadStocks()">查詢</button>
 
+    <!-- 技術指標複選框 -->
+    <div id="indicatorOptions">
+      <label><input type="checkbox" value="Volume Percentage" />Volume</label>
+      <label><input type="checkbox" value="Sma 5" />SMA 5</label>
+      <label><input type="checkbox" value="Sma 10" />SMA 10</label>
+      <label><input type="checkbox" value="Sma 20" />SMA 20</label>
+      <label><input type="checkbox" value="Sma 60" />SMA 60</label>
+      <label><input type="checkbox" value="Sma 120" />SMA 120</label>
+      <label><input type="checkbox" value="Sma 240" />SMA 240</label>
+      <label><input type="checkbox" value="Macd" />MACD</label>
+      <label><input type="checkbox" value="K" />K</label>
+      <label><input type="checkbox" value="D" />D</label>
+      <label><input type="checkbox" value="J" />J</label>
+      <label><input type="checkbox" value="Atr" />ATR</label>
+      <label><input type="checkbox" value="Cci" />CCI</label>
+      <label><input type="checkbox" value="Mom 6" />MOM 6</label>
+      <label><input type="checkbox" value="Mom 12" />MOM 12</label>
+      <label><input type="checkbox" value="Mom 10" />MOM 10</label>
+      <label><input type="checkbox" value="Mom 18" />MOM 18</label>
+      <label><input type="checkbox" value="Roc 5" />ROC 5</label>
+      <label><input type="checkbox" value="Roc 10" />ROC 10</label>
+      <label><input type="checkbox" value="Roc 12" />ROC 12</label>
+      <label><input type="checkbox" value="Willr" />Willr</label>
+      <label><input type="checkbox" value="Bias" />Bias</label>
+      <label><input type="checkbox" value="Volume Oscillator" />Volume Oscillator</label>
+    </div>
+
+    <!-- 蠟燭圖 -->
+    <div id="chart"></div>
+
     <!-- 資料表格 -->
     <table id="stockTable">
       <thead>
@@ -107,13 +137,16 @@
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxdGZmZnVwbmludm5ieGtiZ2p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3NDY4NjEsImV4cCI6MjA2NjMyMjg2MX0.joUVlX5EZdoL1XGzR2TIOnV6VfWhntKQzy7KXxcCbH0";
 
       const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-      let chart; // 儲存 ApexCharts 實例
+      let chart;
 
       async function loadStocks() {
         const symbol = document.getElementById("symbolSelect").value;
         const start = document.getElementById("startDate").value;
         const end = document.getElementById("endDate").value;
+
+        const selectedIndicators = Array.from(
+          document.querySelectorAll('#indicatorOptions input[type="checkbox"]:checked')
+        ).map(cb => cb.value);
 
         if (!symbol || !start || !end) {
           alert("請選擇股票代號與日期區間");
@@ -131,12 +164,7 @@
         const tbody = document.getElementById("stockBody");
         tbody.innerHTML = "";
 
-        if (error) {
-          console.error("查詢失敗：", error);
-          return;
-        }
-
-        if (data.length === 0) {
+        if (error || !data || data.length === 0) {
           tbody.innerHTML = `<tr><td colspan="7">沒有資料</td></tr>`;
           return;
         }
@@ -156,37 +184,53 @@
           tbody.appendChild(tr);
         });
 
-        // 建立 K 線圖資料格式
+        // 主K線圖資料
         const chartData = data.map((row) => ({
           x: new Date(row.date),
           y: [
-            parseFloat(row.open).toFixed(3),
-            parseFloat(row.high).toFixed(3),
-            parseFloat(row.low).toFixed(3),
-            parseFloat(row.close).toFixed(3),
-          ].map(Number), // 確保 y 是數值而不是字串
+            parseFloat(row.open),
+            parseFloat(row.high),
+            parseFloat(row.low),
+            parseFloat(row.close),
+          ],
         }));
 
-        // 如果已經有圖表先銷毀
-        if (chart) {
-          chart.destroy();
-        }
+        // 額外指標線
+        const extraSeries = [];
+        selectedIndicators.forEach((indicator) => {
+          const seriesData = data.map((row) => {
+            const val = parseFloat(row[indicator]);  // 正常寫法
+            return {
+              x: new Date(row.date),
+              y: !isNaN(val) ? val : null,
+            };
+          });
 
-        const prices = data.flatMap((row) => [
-          parseFloat(row.high),
-          parseFloat(row.low),
-        ]);
-        const minY = parseFloat((Math.min(...prices) * 0.999).toFixed(3));
-        const maxY = parseFloat((Math.max(...prices) * 1.001).toFixed(3));
+          extraSeries.push({
+            name: indicator,
+            type: "line",
+            data: seriesData,
+          });
+        });
+        console.log("💡 Sma 5 第一筆：", data[0]["Sma 5"]);
+        console.log("💡 轉成數字：", parseFloat(data[0]["Sma 5"]));
 
-        // 初始化或更新 ApexCharts
+        // 若已存在圖表，銷毀
+        if (chart) chart.destroy();
+
+        // 自動設定 y 軸上下限
+        const prices = data.flatMap((row) => [parseFloat(row.high), parseFloat(row.low)]);
+        const minY = Math.min(...prices) * 0.98;
+        const maxY = Math.max(...prices) * 1.02;
+
         const options = {
           chart: {
-            type: "candlestick",
+            type: "line",
             height: 600,
+            zoom: { enabled: true },
           },
           title: {
-            text: `${symbol} K 線圖`,
+            text: `${symbol} K 線圖 + 技術指標`,
             align: "left",
           },
           xaxis: {
@@ -199,13 +243,19 @@
           },
           series: [
             {
+              name: "K線圖",
+              type: "candlestick",
               data: chartData,
             },
+            ...extraSeries,
           ],
         };
 
         chart = new ApexCharts(document.querySelector("#chart"), options);
         chart.render();
+
+        console.log("✅ 查詢結果 sample：", data[0]);
+        console.log("✅ 選擇指標：", selectedIndicators);
       }
     </script>
   </body>
