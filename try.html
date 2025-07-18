@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <title>股票資料展示</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <style>
       table {
         border-collapse: collapse;
@@ -21,58 +22,72 @@
       }
       select,
       input[type="date"],
+      input[type="text"],
       button {
         font-size: 16px;
         margin: 5px;
         padding: 5px;
+      }
+      #chart {
+        max-width: 1000px;
+        margin: 20px auto;
+      }
+      #suggestions {
+        border: 1px solid #ccc;
+        position: absolute;
+        background: white;
+        width: 300px;
+        display: none;
+        z-index: 10;
       }
     </style>
   </head>
   <body>
     <h1>股票資料</h1>
 
-    <!-- 選擇條件 -->
-    <label for="symbolSelect">股票代號：</label>
-    <select id="symbolSelect">
-      <option value="">請選擇</option>
-      <option value="AAPL">AAPL</option>
-      <option value="AMGN">AMGN</option>
-      <option value="AXP">AXP</option>
-      <option value="BA">BA</option>
-      <option value="CAT">CAT</option>
-      <option value="CRM">CRM</option>
-      <option value="CSCO">CSCO</option>
-      <option value="CVX">CVX</option>
-      <option value="DIS">DIS</option>
-      <option value="GS">GS</option>
-      <option value="HD">HD</option>
-      <option value="HON">HON</option>
-      <option value="IBM">IBM</option>
-      <option value="INTC">INTC</option>
-      <option value="JNJ">JNJ</option>
-      <option value="JPM">JPM</option>
-      <option value="KO">KO</option>
-      <option value="MCD">MCD</option>
-      <option value="MMM">MMM</option>
-      <option value="MRK">MRK</option>
-      <option value="MSFT">MSFT</option>
-      <option value="NKE">NKE</option>
-      <option value="PG">PG</option>
-      <option value="TRV">TRV</option>
-      <option value="UNH">UNH</option>
-      <option value="V">V</option>
-      <option value="VZ">VZ</option>
-      <option value="WBA">WBA</option>
-      <option value="WMT">WMT</option>
-    </select>
+    <!-- 股票搜尋框 -->
+    <label for="symbolInput">搜尋股票：</label>
+    <input
+      type="text"
+      id="symbolInput"
+      placeholder="輸入股票代號或名稱"
+      autocomplete="off"
+    />
+    <div id="suggestions"></div>
 
-    <label>起始日：</label>
-    <input type="date" id="startDate" />
+    <!-- 自訂時間輸入（預設隱藏） -->
+    <div id="customDateRange" style="display: none; text-align: center">
+      起：<input type="date" id="customStart" /> 迄：<input
+        type="date"
+        id="customEnd"
+      />
+      <button onclick="loadStockWithRange(getSymbol(), 'custom')">查詢</button>
+    </div>
 
-    <label>結束日：</label>
-    <input type="date" id="endDate" />
+    <!-- 快速時間篩選 -->
+    <div style="text-align: center; margin: 10px">
+      <button onclick="loadStockWithRange(getSymbol(), '5d')">5天</button>
+      <button onclick="loadStockWithRange(getSymbol(), '1m')">1個月</button>
+      <button onclick="loadStockWithRange(getSymbol(), '3m')">3個月</button>
+      <button onclick="loadStockWithRange(getSymbol(), '6m')">半年</button>
+      <button onclick="loadStockWithRange(getSymbol(), 'ytd')">年初至今</button>
+      <button onclick="loadStockWithRange(getSymbol(), '1y')">一年</button>
+      <button onclick="loadStockWithRange(getSymbol(), '5y')">五年</button>
+      <button onclick="toggleCustomDate()">自訂時間</button>
+    </div>
 
-    <button onclick="loadStocks()">查詢</button>
+    <!-- 蠟燭圖標題 + OHLC顯示 -->
+    <div style="max-width: 1200px; margin: 0 auto">
+      <h2
+        id="chartTitle"
+        style="text-align: left; font-weight: bold; padding: 0 20px"
+      ></h2>
+      <div
+        id="ohlcInfo"
+        style="text-align: left; font-size: 16px; padding: 0 20px"
+      ></div>
+      <div id="chart"></div>
+    </div>
 
     <!-- 資料表格 -->
     <table id="stockTable">
@@ -96,16 +111,14 @@
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNienpmamxtaHZ1Y2h6d3FsbGdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3NDE2OTQsImV4cCI6MjA2ODMxNzY5NH0.fvDVLvGLQdMRuCMXmja8ltpXC3TcjZxq78xbnt9Bh-U";
 
       const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      let chart;
+      let originalMinX = null;
+      let originalMaxX = null;
 
       async function loadStocks() {
-        const symbol = document.getElementById("symbolSelect").value;
+        const symbol = document.getElementById("symbolInput").value;
         const start = document.getElementById("startDate").value;
         const end = document.getElementById("endDate").value;
-
-        if (!symbol || !start || !end) {
-          alert("請選擇股票代號與日期區間");
-          return;
-        }
 
         const { data, error } = await client
           .from("stocks")
@@ -113,18 +126,13 @@
           .eq("symbol", symbol)
           .gte("date", start)
           .lte("date", end)
-          .order("date", { ascending: true }); // 時間由舊到新
-
-        if (error) {
-          console.error("❌ 查詢失敗：", error);
-          return;
-        }
+          .order("date", { ascending: true });
 
         const tbody = document.getElementById("stockBody");
         tbody.innerHTML = "";
 
-        if (data.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="7">❗ 沒有資料</td></tr>`;
+        if (error || !data || data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7">沒有資料</td></tr>`;
           return;
         }
 
@@ -133,16 +141,184 @@
           tr.innerHTML = `
             <td>${row.date}</td>
             <td>${row.symbol}</td>
-            <td>${row.open}</td>
-            <td>${row.high}</td>
-            <td>${row.low}</td>
-            <td>${row.close}</td>
-            <td>${row.volume}</td>
+            <td>${parseFloat(row.open).toFixed(2)}</td>
+            <td>${parseFloat(row.high).toFixed(2)}</td>
+            <td>${parseFloat(row.low).toFixed(2)}</td>
+            <td>${parseFloat(row.close).toFixed(2)}</td>
+            <td>${parseFloat(row.volume).toFixed(0)}</td>
           `;
           tbody.appendChild(tr);
         });
 
-        console.log(`✅ 顯示 ${symbol} 的資料`, data);
+        const chartData = data.map((row) => ({
+          x: new Date(row.date),
+          y: [
+            parseFloat(row.open),
+            parseFloat(row.high),
+            parseFloat(row.low),
+            parseFloat(row.close),
+          ],
+        }));
+
+        if (chart) chart.destroy();
+
+        const prices = data.flatMap((row) => [
+          parseFloat(row.high),
+          parseFloat(row.low),
+        ]);
+        const minY = Math.min(...prices) * 0.98;
+        const maxY = Math.max(...prices) * 1.02;
+
+        document.getElementById("chartTitle").innerText = `${symbol}`;
+
+        const options = {
+          chart: {
+            type: "candlestick",
+            height: 600,
+            zoom: { enabled: true },
+            events: {
+              mounted: (ctx) => {
+                originalMinX = ctx.w.globals.minX;
+                originalMaxX = ctx.w.globals.maxX;
+              },
+              zoomed: (ctx, { xaxis }) => {
+                const zoomSpan = xaxis.max - xaxis.min;
+                const totalSpan = originalMaxX - originalMinX;
+                const zoomRatio = totalSpan / zoomSpan;
+                const newSize = Math.max(
+                  2,
+                  Math.min(4, 2 + Math.log10(zoomRatio))
+                );
+                chart.updateOptions(
+                  { markers: { size: newSize } },
+                  false,
+                  true
+                );
+              },
+            },
+          },
+          xaxis: { type: "datetime" },
+          yaxis: {
+            min: minY,
+            max: maxY,
+            tooltip: { enabled: true },
+            labels: {
+              formatter: (val) => Number(val.toFixed(2)),
+            },
+          },
+          tooltip: {
+            shared: true,
+            intersect: false,
+            y: {
+              formatter: (val, opts) => {
+                const index = opts.dataPointIndex;
+                const [open, high, low, close] = chartData[index].y;
+                const date = chartData[index].x.toISOString().split("T")[0];
+                const color =
+                  close > open ? "#2ecc71" : close < open ? "#e74c3c" : "#aaa";
+                document.getElementById(
+                  "ohlcInfo"
+                ).innerHTML = `日期: ${date}　開: <span style='color:${color}'>${open.toFixed(
+                  2
+                )}</span>　高: <span style='color:${color}'>${high.toFixed(
+                  2
+                )}</span>　低: <span style='color:${color}'>${low.toFixed(
+                  2
+                )}</span>　收: <span style='color:${color}'>${close.toFixed(
+                  2
+                )}</span>`;
+                return val?.toFixed ? val.toFixed(2) : val;
+              },
+            },
+          },
+          series: [{ name: "K線圖", data: chartData }],
+        };
+
+        chart = new ApexCharts(document.querySelector("#chart"), options);
+        chart.render();
+      }
+
+      async function loadStockWithRange(symbol, range) {
+        const end = new Date();
+        let start = new Date();
+        switch (range) {
+          case "5d":
+            start.setDate(end.getDate() - 5);
+            break;
+          case "1m":
+            start.setMonth(end.getMonth() - 1);
+            break;
+          case "3m":
+            start.setMonth(end.getMonth() - 3);
+            break;
+          case "6m":
+            start.setMonth(end.getMonth() - 6);
+            break;
+          case "ytd":
+            start = new Date(end.getFullYear(), 0, 1);
+            break;
+          case "1y":
+            start.setFullYear(end.getFullYear() - 1);
+            break;
+          case "5y":
+            start.setFullYear(end.getFullYear() - 5);
+            break;
+          case "custom":
+            start = new Date(document.getElementById("customStart").value);
+            end = new Date(document.getElementById("customEnd").value);
+            break;
+        }
+        document.getElementById("startDate").value = start
+          .toISOString()
+          .split("T")[0];
+        document.getElementById("endDate").value = end
+          .toISOString()
+          .split("T")[0];
+        document.getElementById("symbolInput").value = symbol;
+        loadStocks();
+      }
+
+      function toggleCustomDate() {
+        const el = document.getElementById("customDateRange");
+        el.style.display = el.style.display === "none" ? "block" : "none";
+      }
+
+      function getSymbol() {
+        return document.getElementById("symbolInput").value;
+      }
+
+      document
+        .getElementById("symbolInput")
+        .addEventListener("input", async (e) => {
+          const keyword = e.target.value.trim();
+          const suggestions = document.getElementById("suggestions");
+          if (!keyword) return (suggestions.style.display = "none");
+
+          const { data, error } = await client
+            .from("stocks_meta")
+            .select("symbol, name")
+            .or(`symbol.ilike.%${keyword}%,name.ilike.%${keyword}%`)
+            .limit(10);
+
+          if (error || !data || data.length === 0) {
+            suggestions.innerHTML = `<div style='padding:8px;'>無符合股票</div>`;
+            suggestions.style.display = "block";
+            return;
+          }
+
+          suggestions.innerHTML = data
+            .map(
+              (item) =>
+                `<div style='padding:8px; cursor:pointer' onclick='selectSymbol("${item.symbol}")'>${item.symbol} - ${item.name}</div>`
+            )
+            .join("");
+          suggestions.style.display = "block";
+        });
+
+      function selectSymbol(symbol) {
+        document.getElementById("symbolInput").value = symbol;
+        document.getElementById("suggestions").style.display = "none";
+        loadStockWithRange(symbol, "5d");
       }
     </script>
   </body>

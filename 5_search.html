@@ -80,39 +80,6 @@
 
     <button onclick="loadStocks()">查詢</button>
 
-    <!-- 技術指標複選框 -->
-    <div id="indicatorOptions">
-      <label><input type="checkbox" value="Sma 5" /> SMA 5</label>
-      <label><input type="checkbox" value="Sma 10" /> SMA 10</label>
-      <label><input type="checkbox" value="Sma 20" /> SMA 20</label>
-      <label><input type="checkbox" value="Sma 60" /> SMA 60</label>
-      <label><input type="checkbox" value="Sma 120" /> SMA 120</label>
-      <label><input type="checkbox" value="Sma 240" /> SMA 240</label>
-      <label><input type="checkbox" value="MACD" /> MACD</label>
-      <label><input type="checkbox" value="K" /> K</label>
-      <label><input type="checkbox" value="D" /> D</label>
-      <label><input type="checkbox" value="J" /> J</label>
-      <label><input type="checkbox" value="Atr" /> ATR</label>
-      <label><input type="checkbox" value="Cci" /> CCI</label>
-      <label><input type="checkbox" value="Mom 6" /> MOM 6</label>
-      <label><input type="checkbox" value="Mom 12" /> MOM 12</label>
-      <label><input type="checkbox" value="Mom 10" /> MOM 10</label>
-      <label><input type="checkbox" value="Mom 18" /> MOM 18</label>
-      <label><input type="checkbox" value="Roc 5" /> ROC 5</label>
-      <label><input type="checkbox" value="Roc 10" /> ROC 10</label>
-      <label><input type="checkbox" value="Roc 12" /> ROC 12</label>
-      <label><input type="checkbox" value="Willr" /> Willr</label>
-      <label><input type="checkbox" value="Bias" /> Bias</label>
-      <label
-        ><input type="checkbox" value="Volume Percentage" /> Volume
-        Percentage</label
-      >
-      <label
-        ><input type="checkbox" value="Volume Oscillator" /> Volume
-        Oscillator</label
-      >
-    </div>
-
     <!-- 蠟燭圖標題 + OHLC顯示 -->
     <div style="max-width: 1200px; margin: 0 auto">
       <h2
@@ -208,23 +175,49 @@
           ],
         }));
 
-        // 額外指標線
-        const extraSeries = [];
-        selectedIndicators.forEach((indicator) => {
+        const allIndicators = [
+          "Sma 5",
+          "Sma 10",
+          "Sma 20",
+          "Sma 60",
+          "Sma 120",
+          "Sma 240",
+          "MACD",
+          "K",
+          "D",
+          "J",
+          "Atr",
+          "Cci",
+          "Mom 6",
+          "Mom 10",
+          "Mom 12",
+          "Mom 18",
+          "Roc 5",
+          "Roc 10",
+          "Roc 12",
+          "Willr",
+          "Bias",
+          "Volume Percentage",
+          "Volume Oscillator",
+        ];
+
+        const extraSeries = allIndicators.map((indicator) => {
           const seriesData = data.map((row) => {
-            const val = parseFloat(row[indicator]); // 正常寫法
+            const val = parseFloat(row[indicator]);
             return {
               x: new Date(row.date),
               y: !isNaN(val) ? val : null,
             };
           });
 
-          extraSeries.push({
+          return {
             name: indicator,
             type: "line",
             data: seriesData,
-          });
+            visible: false, // ApexCharts 會自動顯示 legend 但不畫圖
+          };
         });
+
         console.log(" Sma 5 第一筆：", data[0]["Sma 5"]);
         console.log(" 轉成數字：", parseFloat(data[0]["Sma 5"]));
 
@@ -275,29 +268,66 @@
                   true
                 );
               },
+              legendClick: function (chartContext, seriesIndex, config) {
+                const series = chartContext.w.config.series[seriesIndex];
+                const currentOpacity = series.opacity || 1;
+
+                // 切換 opacity：0 <-> 1
+                const newOpacity = currentOpacity === 0 ? 1 : 0;
+
+                chartContext.updateOptions(
+                  {
+                    series: chartContext.w.config.series.map((s, i) =>
+                      i === seriesIndex ? { ...s, opacity: newOpacity } : s
+                    ),
+                  },
+                  false,
+                  true
+                );
+              },
             },
+          },
+
+          legend: {
+            position: "right",
+            horizontalAlign: "left",
+            show: true,
           },
 
           tooltip: {
             shared: true,
-            custom: function ({ series, seriesIndex, dataPointIndex, w }) {
-              const ohlc = chartData[dataPointIndex].y;
-              const date = chartData[dataPointIndex].x
-                .toISOString()
-                .split("T")[0];
-              const [open, high, low, close] = ohlc;
+            intersect: false,
+            y: {
+              formatter: function (val, opts) {
+                const seriesIndex = opts.seriesIndex;
+                const dataPointIndex = opts.dataPointIndex;
 
-              //  正確顏色邏輯：漲綠、跌紅、平灰
-              const color =
-                close > open ? "#2ecc71" : close < open ? "#e74c3c" : "#aaa";
+                // 只在主 K 線圖時更新 OHLC 資訊（index = 0）
+                if (seriesIndex === 0) {
+                  const [open, high, low, close] = chartData[dataPointIndex].y;
+                  const date = chartData[dataPointIndex].x
+                    .toISOString()
+                    .split("T")[0];
+                  const color =
+                    close > open
+                      ? "#2ecc71"
+                      : close < open
+                      ? "#e74c3c"
+                      : "#aaa";
 
-              document.getElementById("ohlcInfo").innerHTML = `日期: ${date}　
-                開: <span style="color:${color}">${open.toFixed(4)}</span>　
-                高: <span style="color:${color}">${high.toFixed(4)}</span>　
-                低: <span style="color:${color}">${low.toFixed(4)}</span>　
-                收: <span style="color:${color}">${close.toFixed(4)}</span>`;
+                  document.getElementById(
+                    "ohlcInfo"
+                  ).innerHTML = `日期: ${date}　
+                    開: <span style="color:${color}">${open.toFixed(2)}</span>　
+                    高: <span style="color:${color}">${high.toFixed(2)}</span>　
+                    低: <span style="color:${color}">${low.toFixed(2)}</span>　
+                    收: <span style="color:${color}">${close.toFixed(
+                    2
+                  )}</span>`;
+                }
 
-              return null;
+                return val?.toFixed ? val.toFixed(2) : val;
+              },
             },
           },
 
