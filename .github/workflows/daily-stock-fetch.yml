@@ -2,31 +2,31 @@ name: Daily Stock Fetch
 
 on:
   schedule:
-    - cron: '0 13 * * *'  # 每天 UTC 13:00（台灣 21:00）
-  workflow_dispatch:      # 可手動觸發
+    - cron: "0 13 * * *" # 每天 UTC 13:00（台灣 21:00）
+  workflow_dispatch: # 可手動觸發
 
 jobs:
   fetch:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
 
-    - name: Install dependencies
-      run: pip install yfinance pandas pandas_ta supabase
+      - name: Install dependencies
+        run: pip install yfinance pandas pandas_ta supabase
 
-    - name: Run script
-      env:
-        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-      run: |
-        echo "Writing secrets to env.py"
-        echo "SUPABASE_URL='${SUPABASE_URL}'" > env.py
-        echo "SUPABASE_KEY='${SUPABASE_KEY}'" >> env.py
-        python fetch_stock_data.py
+      - name: Run script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          echo "Writing secrets to env.py"
+          echo "SUPABASE_URL='${SUPABASE_URL}'" > env.py
+          echo "SUPABASE_KEY='${SUPABASE_KEY}'" >> env.py
+          python FetchData.py
