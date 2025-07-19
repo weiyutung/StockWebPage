@@ -5,6 +5,16 @@
     <title>股票資料展示</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script>
+      if (
+        location.hash.includes("access_token") &&
+        !location.pathname.endsWith("ResetPassword.html")
+      ) {
+        // 重導向到正確頁面
+        const target = "/StockWebPage/ResetPassword.html" + location.hash;
+        location.replace(target);
+      }
+    </script>
     <style>
       table {
         border-collapse: collapse;
