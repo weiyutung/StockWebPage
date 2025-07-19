@@ -110,10 +110,13 @@
       async function resetPassword() {
         const email = prompt("請輸入註冊時的 Email，我們將寄送重設連結：");
         if (!email) return;
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+
+        /*const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo:
             "https://weiyutung.github.io/StockWebPage/ResetPassword.html",
         });
+        */
+        const { data, error } = await client.auth.resetPasswordForEmail(email);
         if (error) {
           alert("重設失敗：" + error.message);
         } else {
