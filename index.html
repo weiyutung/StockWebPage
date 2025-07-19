@@ -229,6 +229,22 @@
         }
       }
 
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
+
+      if (accessToken && refreshToken) {
+        supabase.auth
+          .setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          })
+          .then(() => {
+            // 成功登入，跳轉或顯示登入狀態
+            window.location.hash = ""; // 清掉 URL hash
+            alert("登入成功");
+          });
+      }
       window.onload = checkLoginStatus;
 
       let chart;
