@@ -97,10 +97,15 @@
           return;
         }
 
-        const { data, error } = await client.auth.signUp({
-          email,
-          password,
-        });
+        const { data, error } = await client.auth.signUp(
+          {
+            email,
+            password,
+          },
+          {
+            redirectTo: "https://weiyutung.github.io/StockWebPage/index.html",
+          }
+        );
 
         if (error) {
           msg.textContent = "註冊失敗：" + error.message;
