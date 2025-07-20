@@ -183,6 +183,27 @@
       const menuContainer = document.getElementById("menuContainer");
       const dropdownMenu = document.getElementById("dropdownMenu");
 
+      // 註冊點擊連結
+      async function handleRedirect() {
+        const hash = window.location.hash;
+        if (hash && hash.includes("access_token")) {
+          const { data, error } = await client.auth.getSessionFromUrl({
+            storeSession: true,
+          });
+          if (error) {
+            console.error("處理 redirect 登入失敗:", error.message);
+            return;
+          }
+          console.log("登入成功，使用者資訊：", data.session?.user);
+
+          // 可導向到主畫面或清除 URL 中的 token
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname
+          );
+        }
+      }
       // 滑鼠移入顯示選單
       menuContainer.addEventListener("mouseenter", () => {
         dropdownMenu.style.display = "block";
