@@ -100,7 +100,9 @@
         const { data, error } = await client.auth.signUp({
           email,
           password,
-          redirectTo: "https://weiyutung.github.io/StockWebPage/",
+          options: {
+            redirectTo: "https://weiyutung.github.io/StockWebPage/", //  正確首頁路徑
+          },
         });
         /*
         {
