@@ -97,17 +97,17 @@
           return;
         }
 
-        const { data, error } = await client.auth.signUp(
-          {
-            email,
-            password,
-          },
-          {
+        const { data, error } = await client.auth.signUp({
+          email,
+          password,
+        });
+        /*
+        {
             redirectTo: "https://weiyutung.github.io/StockWebPage/",
           }
-        );
-        console.log("signup data", data);
-        console.log("signup error", error);
+        */
+        // console.log("signup data", data);
+        // console.log("signup error", error);
 
         if (error) {
           msg.textContent = "註冊失敗：" + error.message;
