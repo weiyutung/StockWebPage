@@ -19,7 +19,7 @@ US_STOCK_NAME = [
 
 # 抓最近 35 天資料（技術指標需要長期資料）
 end_date = datetime.datetime.now().date()
-start_date = end_date - datetime.timedelta(days=35)
+start_date = end_date - datetime.timedelta(days=365)
 
 # 技術指標抓取與上傳
 for symbol in US_STOCK_NAME:
@@ -102,7 +102,7 @@ for symbol in US_STOCK_NAME:
     }
 
     # 轉換 NaN ➜ None，並限制浮點數位數
-    data = {k: (None if pd.isna(v) else round(v, 3) if isinstance(v, float) else v)
+    data = {k: (None if pd.isna(v) else round(v, 10) if isinstance(v, float) else v)
             for k, v in data.items()}
 
     supabase.table("stocks").insert(data).execute()
