@@ -270,6 +270,28 @@
       }
       window.onload = checkLoginStatus;
 
+      // 把 Token 讀出來存下來
+      function parseHashParams() {
+        const hash = window.location.hash.substr(1); // 去掉#
+        return Object.fromEntries(hash.split("&").map((kv) => kv.split("=")));
+      }
+
+      const params = parseHashParams();
+
+      if (params.access_token) {
+        // 存 token，方便後續 API 調用
+        localStorage.setItem("access_token", params.access_token);
+        localStorage.setItem("refresh_token", params.refresh_token);
+        localStorage.setItem("token_type", params.token_type);
+        localStorage.setItem("expires_at", params.expires_at);
+
+        // 清除 URL 中的 hash，避免重複處理
+        history.replaceState(null, "", window.location.pathname);
+
+        // 可以做跳轉或顯示登入狀態
+        console.log("登入成功，Token 已儲存");
+      }
+
       let chart;
 
       async function loadStocks() {
