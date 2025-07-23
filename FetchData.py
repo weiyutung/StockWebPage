@@ -65,7 +65,7 @@ for symbol in US_STOCK_NAME:
     hist["Volume_Oscillator"] = (short_ma - long_ma) / long_ma * 100
 
     # 只上傳今天那一筆
-    today_row = hist.iloc[-5]
+    today_row = hist.iloc[-3]
     today_date = today_row.name.date()
 
     data = {
