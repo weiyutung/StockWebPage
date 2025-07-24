@@ -24,6 +24,14 @@
       });
     </script>
     <script>
+      // 如果網址包含 access_token，代表從驗證信回來
+      if (location.hash.includes("access_token")) {
+        // 導向 StockWebPage/index.html，並保留 access_token 等資訊
+        const redirectTarget = "/StockWebPage/index.html" + location.hash;
+        location.replace(redirectTarget);
+      }
+    </script>
+    <!-- <script>
       window.addEventListener("load", () => {
         const hash = location.hash;
         console.log("💬 location.hash =", hash);
@@ -35,7 +43,7 @@
             "<p> 沒有 access_token，Supabase 沒有成功導回</p>";
         }
       });
-    </script>
+    </script> -->
 
     <style>
       table {
