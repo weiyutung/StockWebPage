@@ -15,6 +15,15 @@
         location.replace(target);
       }
     </script>
+    <script>
+      window.addEventListener("load", () => {
+        const hash = window.location.hash;
+        if (hash.includes("access_token") && hash.includes("type=signup")) {
+          alert(" 驗證成功！您已完成註冊，可以登入系統了！");
+        }
+      });
+    </script>
+
     <style>
       table {
         border-collapse: collapse;
@@ -269,14 +278,6 @@
           });
       }
       window.onload = checkLoginStatus;
-
-      window.addEventListener("load", () => {
-        const hash = window.location.hash;
-        if (hash.includes("access_token") && hash.includes("type=signup")) {
-          alert("驗證成功！您已完成註冊，可以登入系統了。");
-          // 或顯示在頁面上，而不是用 alert
-        }
-      });
 
       let chart;
 
