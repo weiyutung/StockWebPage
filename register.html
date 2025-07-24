@@ -97,6 +97,13 @@
           return;
         }
 
+        console.log("signUp options:", {
+          email,
+          password,
+          options: {
+            redirectTo: "https://weiyutung.github.io/StockWebPage/",
+          },
+        });
         const { data, error } = await client.auth.signUp({
           email,
           password,
