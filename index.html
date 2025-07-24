@@ -23,6 +23,19 @@
         }
       });
     </script>
+    <script>
+      window.addEventListener("load", () => {
+        const hash = location.hash;
+        console.log("💬 location.hash =", hash);
+
+        if (hash.includes("access_token")) {
+          document.body.innerHTML += "<p> access_token 接收到，跳轉成功</p>";
+        } else {
+          document.body.innerHTML +=
+            "<p> 沒有 access_token，Supabase 沒有成功導回</p>";
+        }
+      });
+    </script>
 
     <style>
       table {
