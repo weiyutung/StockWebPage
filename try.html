@@ -118,6 +118,7 @@
       let originalMinX = null;
       let originalMaxX = null;
 
+      // 上方股票資料圖表
       function displayStockData(data, symbol) {
         const tbody = document.getElementById("stockBody");
         tbody.innerHTML = "";
@@ -151,6 +152,11 @@
           ],
         }));
 
+        const volumeData = data.map((row) => ({
+          x: new Date(row.date),
+          y: parseFloat(row.volume),
+        }));
+
         if (chart) chart.destroy();
 
         const prices = data.flatMap((row) => [
@@ -164,8 +170,9 @@
 
         const options = {
           chart: {
-            type: "candlestick",
             height: 600,
+            type: "line",
+            stacked: false,
             zoom: { enabled: true },
             events: {
               mounted: (ctx) => {
@@ -188,41 +195,94 @@
               },
             },
           },
-          xaxis: { type: "datetime" },
-          yaxis: {
-            min: minY,
-            max: maxY,
-            tooltip: { enabled: true },
+          xaxis: {
+            type: "category", // 類別型 x 軸，因為我們傳進去的是日期字串
+            tickAmount: 20,
             labels: {
-              formatter: (val) => Number(val.toFixed(2)),
+              rotate: -45,
+              formatter: function (value) {
+                const date = new Date(value);
+                const y = date.getFullYear();
+                const m = String(date.getMonth() + 1).padStart(2, "0");
+                const d = String(date.getDate()).padStart(2, "0");
+                return `${m}/${d}`; // 或改成 `${y}-${m}-${d}`
+              },
             },
           },
+          yaxis: [
+            {
+              seriesName: "K線圖",
+              tooltip: { enabled: true },
+              min: minY,
+              max: maxY,
+              labels: {
+                formatter: (val) => Number(val.toFixed(2)),
+              },
+            },
+            {
+              seriesName: "成交量",
+              opposite: true,
+              labels: {
+                formatter: (val) => val.toFixed(0),
+              },
+              title: {
+                text: "成交量",
+              },
+            },
+          ],
           tooltip: {
             shared: true,
             intersect: false,
             y: {
               formatter: (val, opts) => {
                 const index = opts.dataPointIndex;
-                const [open, high, low, close] = chartData[index].y;
-                const date = chartData[index].x.toISOString().split("T")[0];
-                const color =
-                  close > open ? "#2ecc71" : close < open ? "#e74c3c" : "#aaa";
-                document.getElementById(
-                  "ohlcInfo"
-                ).innerHTML = `日期: ${date}　開: <span style='color:${color}'>${open.toFixed(
-                  2
-                )}</span>　高: <span style='color:${color}'>${high.toFixed(
-                  2
-                )}</span>　低: <span style='color:${color}'>${low.toFixed(
-                  2
-                )}</span>　收: <span style='color:${color}'>${close.toFixed(
-                  2
-                )}</span>`;
+                if (opts.seriesIndex === 0) {
+                  const [open, high, low, close] = chartData[index].y;
+                  const date = chartData[index].x.toISOString().split("T")[0];
+                  const color =
+                    close > open
+                      ? "#2ecc71"
+                      : close < open
+                      ? "#e74c3c"
+                      : "#aaa";
+                  document.getElementById(
+                    "ohlcInfo"
+                  ).innerHTML = `日期: ${date}　開: <span style='color:${color}'>${open.toFixed(
+                    2
+                  )}</span>　高: <span style='color:${color}'>${high.toFixed(
+                    2
+                  )}</span>　低: <span style='color:${color}'>${low.toFixed(
+                    2
+                  )}</span>　收: <span style='color:${color}'>${close.toFixed(
+                    2
+                  )}</span>`;
+                }
                 return val?.toFixed ? val.toFixed(2) : val;
               },
             },
           },
-          series: [{ name: "K線圖", data: chartData }],
+          stroke: {
+            width: [1, 0], // [K線邊框, 成交量 bar 邊框]
+          },
+          plotOptions: {
+            bar: {
+              columnWidth: "60%", // 成交量長條圖變細
+            },
+          },
+          series: [
+            {
+              name: "K線圖",
+              type: "candlestick",
+              data: chartData,
+            },
+            {
+              name: "成交量",
+              type: "bar",
+              data: volumeData,
+              yAxisIndex: 1,
+              color: "rgba(100, 149, 237, 0.4)", // cornflowerblue 淡色
+            },
+          ],
         };
 
         chart = new ApexCharts(document.querySelector("#chart"), options);
