@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>股票資料展示</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <style>
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 20px;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: center;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+      select,
+      input[type="date"],
+      input[type="text"],
+      button {
+        font-size: 16px;
+        margin: 5px;
+        padding: 5px;
+      }
+      #chart {
+        max-width: 1000px;
+        margin: 20px auto;
+      }
+      #suggestions {
+        border: 1px solid #ccc;
+        position: absolute;
+        background: white;
+        width: 300px;
+        display: none;
+        z-index: 10;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>股票資料</h1>
+
+    <!-- 股票搜尋框 -->
+    <label for="symbolInput">搜尋股票：</label>
+    <input
+      type="text"
+      id="symbolInput"
+      placeholder="輸入股票代號或名稱"
+      autocomplete="off"
+    />
+    <div id="suggestions"></div>
+
+    <!-- 時間選擇 -->
+    <div style="text-align: center; margin: 10px">
+      <button onclick="loadStockWithRange(getSymbol(), '5d')">5天</button>
+      <button onclick="loadStockWithRange(getSymbol(), '1m')">1個月</button>
+      <button onclick="loadStockWithRange(getSymbol(), '3m')">3個月</button>
+      <button onclick="loadStockWithRange(getSymbol(), '6m')">半年</button>
+      <button onclick="loadStockWithRange(getSymbol(), 'ytd')">年初至今</button>
+      <button onclick="loadStockWithRange(getSymbol(), '1y')">一年</button>
+      <button onclick="loadStockWithRange(getSymbol(), '5y')">五年</button>
+    </div>
+
+    <!-- 技術指標複選欄位 -->
+    <div id="indicatorOptions" style="display: none"></div>
+
+    <!-- K線圖 -->
+    <div style="max-width: 1200px; margin: 0 auto">
+      <h2
+        id="chartTitle"
+        style="text-align: left; font-weight: bold; padding: 0 20px"
+      ></h2>
+      <div
+        id="ohlcInfo"
+        style="text-align: left; font-size: 16px; padding: 0 20px"
+      ></div>
+      <div id="chart"></div>
+    </div>
+
+    <table id="stockTable">
+      <thead>
+        <tr>
+          <th>日期</th>
+          <th>股票代號</th>
+          <th>開盤價</th>
+          <th>最高價</th>
+          <th>最低價</th>
+          <th>收盤價</th>
+          <th>成交量</th>
+        </tr>
+      </thead>
+      <tbody id="stockBody"></tbody>
+    </table>
+
+    <script>
+      const SUPABASE_URL = "https://sbzzfjlmhvuchzwqllgf.supabase.co";
+      const SUPABASE_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNienpmamxtaHZ1Y2h6d3FsbGdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3NDE2OTQsImV4cCI6MjA2ODMxNzY5NH0.fvDVLvGLQdMRuCMXmja8ltpXC3TcjZxq78xbnt9Bh-U";
+      const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      let chart;
+      let originalMinX, originalMaxX;
+
+      const allIndicators = [
+        "Sma 5",
+        "Sma 10",
+        "Sma 20",
+        "Sma 60",
+        "Sma 120",
+        "Sma 240",
+        "MACD",
+        "K",
+        "D",
+        "J",
+        "Atr",
+        "Cci",
+        "Mom 6",
+        "Mom 10",
+        "Mom 12",
+        "Mom 18",
+        "Roc 5",
+        "Roc 10",
+        "Roc 12",
+        "Willr",
+        "Bias",
+        "Volume Percentage",
+        "Volume Oscillator",
+      ];
+
+      function getSymbol() {
+        return document.getElementById("symbolInput").value;
+      }
+
+      function selectSymbol(symbol) {
+        document.getElementById("symbolInput").value = symbol;
+        document.getElementById("suggestions").style.display = "none";
+        loadStockWithRange(symbol, "5d");
+      }
+
+      async function loadStockWithRange(symbol, range) {
+        const rangeToCount = {
+          "5d": 5,
+          "1m": 22,
+          "3m": 66,
+          "6m": 132,
+          "1y": 264,
+          "5y": 1320,
+        };
+        let count = rangeToCount[range] || 5;
+        const { data, error } = await client
+          .from("stocks")
+          .select("*")
+          .eq("symbol", symbol)
+          .order("date", { ascending: false })
+          .limit(count);
+
+        if (error || !data || data.length === 0) return alert("查無資料");
+        const sortedData = data.sort(
+          (a, b) => new Date(a.date) - new Date(b.date)
+        );
+        displayStockData(sortedData, symbol);
+      }
+
+      function displayStockData(data, symbol) {
+        const tbody = document.getElementById("stockBody");
+        tbody.innerHTML = "";
+        data.forEach((row) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${row.date}</td><td>${row.symbol}</td>
+            <td>${parseFloat(row.open).toFixed(2)}</td>
+            <td>${parseFloat(row.high).toFixed(2)}</td>
+            <td>${parseFloat(row.low).toFixed(2)}</td>
+            <td>${parseFloat(row.close).toFixed(2)}</td>
+            <td>${parseFloat(row.volume).toFixed(0)}</td>`;
+          tbody.appendChild(tr);
+        });
+
+        const chartData = data.map((row) => ({
+          x: new Date(row.date),
+          y: [
+            parseFloat(row.open),
+            parseFloat(row.high),
+            parseFloat(row.low),
+            parseFloat(row.close),
+          ],
+        }));
+
+        const volumeData = data.map((row) => ({
+          x: new Date(row.date),
+          y: parseFloat(row.volume),
+        }));
+
+        const extraSeries = allIndicators.map((ind) => {
+          const series = data.map((row) => {
+            const val = parseFloat(row[ind]);
+            return { x: new Date(row.date), y: isNaN(val) ? null : val };
+          });
+          return {
+            name: ind,
+            type: "line",
+            data: series,
+            visible: false,
+          };
+        });
+
+        if (chart) chart.destroy();
+
+        const prices = data.flatMap((r) => [
+          parseFloat(r.high),
+          parseFloat(r.low),
+        ]);
+        const minY = Math.min(...prices) * 0.98;
+        const maxY = Math.max(...prices) * 1.02;
+        document.getElementById("chartTitle").innerText = `${symbol}`;
+
+        const options = {
+          chart: {
+            type: "line",
+            height: 600,
+            zoom: { enabled: true },
+            events: {
+              mounted: function (ctx) {
+                originalMinX = ctx.w.globals.minX;
+                originalMaxX = ctx.w.globals.maxX;
+              },
+            },
+          },
+          legend: { position: "right", show: true },
+          tooltip: {
+            shared: true,
+            y: {
+              formatter: (val, opts) => {
+                const i = opts.dataPointIndex;
+                if (opts.seriesIndex === 0) {
+                  const [o, h, l, c] = chartData[i].y;
+                  const date = chartData[i].x.toISOString().split("T")[0];
+                  const color = c > o ? "#2ecc71" : c < o ? "#e74c3c" : "#aaa";
+                  document.getElementById(
+                    "ohlcInfo"
+                  ).innerHTML = `日期: ${date}　開: <span style='color:${color}'>${o.toFixed(
+                    2
+                  )}</span>　高: <span style='color:${color}'>${h.toFixed(
+                    2
+                  )}</span>　低: <span style='color:${color}'>${l.toFixed(
+                    2
+                  )}</span>　收: <span style='color:${color}'>${c.toFixed(
+                    2
+                  )}</span>`;
+                }
+                return val?.toFixed ? val.toFixed(2) : val;
+              },
+            },
+          },
+          xaxis: { type: "datetime" },
+          yaxis: {
+            min: minY,
+            max: maxY,
+            tooltip: { enabled: true },
+            labels: { formatter: (val) => Number(val.toFixed(2)) },
+          },
+          stroke: { width: 1 },
+          markers: { size: 2 },
+          series: [
+            { name: "K線圖", type: "candlestick", data: chartData },
+            {
+              name: "成交量",
+              type: "bar",
+              data: volumeData,
+              yAxisIndex: 1,
+              color: "rgba(100,149,237,0.4)",
+            },
+            ...extraSeries,
+          ],
+        };
+
+        chart = new ApexCharts(document.querySelector("#chart"), options);
+        chart.render();
+      }
+
+      document
+        .getElementById("symbolInput")
+        .addEventListener("input", async (e) => {
+          const keyword = e.target.value.trim();
+          const suggestions = document.getElementById("suggestions");
+          if (!keyword) return (suggestions.style.display = "none");
+
+          const { data, error } = await client
+            .from("stocks_meta")
+            .select("symbol, name_en, name_zh, short_name_en, short_name_zh")
+            .or(
+              `symbol.ilike.%${keyword}%,` +
+                `name_en.ilike.%${keyword}%,` +
+                `name_zh.ilike.%${keyword}%,` +
+                `short_name_en.ilike.%${keyword}%,` +
+                `short_name_zh.ilike.%${keyword}%`
+            )
+
+            .limit(10);
+
+          if (error || !data || data.length === 0) {
+            suggestions.innerHTML = `<div style='padding:8px;'>無符合股票</div>`;
+            suggestions.style.display = "block";
+            return;
+          }
+
+          suggestions.innerHTML = data
+            .map((item) => {
+              const nameDisplay =
+                item.name_zh ||
+                item.name_en ||
+                item.short_name_zh ||
+                item.short_name_en ||
+                "";
+              return `<div style='padding:8px; cursor:pointer' onclick='selectSymbol("${item.symbol}")'>${item.symbol} - ${nameDisplay}</div>`;
+            })
+
+            .join("");
+          suggestions.style.display = "block";
+        });
+
+      function selectSymbol(symbol) {
+        console.log("你點了股票代號：", symbol); // ✅ 新增這行
+        document.getElementById("symbolInput").value = symbol;
+        document.getElementById("suggestions").style.display = "none";
+        loadStockWithRange(symbol, "5d");
+      }
+      document.addEventListener("DOMContentLoaded", () => {
+        loadStockWithRange("AAPL", "5d");
+      });
+    </script>
+  </body>
+</html>
