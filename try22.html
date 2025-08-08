@@ -343,8 +343,9 @@
           parseFloat(r.high),
           parseFloat(r.low),
         ]);
-        const minY = Math.min(...prices) * 0.98;
-        const maxY = Math.max(...prices) * 1.02;
+        const minY = Math.min(...prices) * 0.3;
+        const maxY = Math.max(...prices) * 1.05;
+
         document.getElementById("chartTitle").innerText = `${symbol}`;
         document.getElementById("ohlcInfo").innerHTML =
           "將滑鼠懸停在圖表上以查看詳細資訊";
@@ -387,18 +388,48 @@
               return `<div class="apexcharts-tooltip-title" style="background: #ECEFF1; color: #333">${date}</div><div class="apexcharts-tooltip-series-group" style="padding:5px">${tooltipText}</div>`;
             },
           },
-          xaxis: { type: "datetime" },
+          xaxis: {
+            type: "category", // 類別型 x 軸，因為我們傳進去的是日期字串
+            tickAmount: 20,
+            labels: {
+              rotate: -45,
+              formatter: function (value) {
+                const date = new Date(value);
+                const y = date.getFullYear();
+                const m = String(date.getMonth() + 1).padStart(2, "0");
+                const d = String(date.getDate()).padStart(2, "0");
+                return `${m}/${d}`; // 或改成 `${y}-${m}-${d}`
+              },
+            },
+          },
           yaxis: [
             {
               seriesName: "K線圖",
+              tooltip: { enabled: true },
               min: minY,
               max: maxY,
-              labels: { formatter: (val) => val.toFixed(2) },
+              labels: {
+                formatter: (val) => Number(val.toFixed(2)),
+              },
             },
-            { seriesName: "成交量", show: false, opposite: true },
+            {
+              seriesName: "成交量",
+              opposite: true,
+              labels: {
+                formatter: (val) => val.toFixed(0),
+              },
+              title: {
+                text: "成交量",
+              },
+            },
           ],
           stroke: { width: [2, 1, 1, 1, 1, 1, 1, 1] }, // Adjust stroke width for different series
           markers: { size: 0 },
+          plotOptions: {
+            bar: {
+              columnWidth: "60%", // 成交量長條圖寬細
+            },
+          },
           series: [
             { name: "K線圖", type: "candlestick", data: chartData },
             {
