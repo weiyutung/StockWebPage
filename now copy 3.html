@@ -430,6 +430,12 @@
           parseFloat(r.high),
           parseFloat(r.low),
         ]);
+
+        // 標題
+        document.getElementById("chartTitle").innerText = `${symbol}`;
+        document.getElementById("ohlcInfo").innerHTML =
+          "將滑鼠懸停在圖表上以查看詳細資訊";
+
         const minY = Math.min(...prices) * 0.95;
         const maxY = Math.max(...prices) * 1.05;
 
@@ -437,6 +443,10 @@
 
         const options = {
           chart: { type: "candlestick", height: 500, zoom: { enabled: true } },
+          legend: {
+            show: false,
+          },
+
           xaxis: {
             type: "category",
             categories: tradingDates,
@@ -479,6 +489,37 @@
               color: "rgba(100,149,237,0.4)",
             },
           ],
+          tooltip: {
+            shared: true,
+            custom: function ({ series, seriesIndex, dataPointIndex, w }) {
+              const ohlc = w.globals.initialSeries[0].data[dataPointIndex].y;
+              const date = tradingDates[dataPointIndex];
+              const color = ohlc[3] > ohlc[0] ? "#2ecc71" : "#e74c3c";
+              document.getElementById("ohlcInfo").innerHTML =
+                `日期: ${date}　` +
+                `<span style='color:${color}'>開: ${ohlc[0].toFixed(
+                  2
+                )} 高: ${ohlc[1].toFixed(2)} 低: ${ohlc[2].toFixed(
+                  2
+                )} 收: ${ohlc[3].toFixed(2)}</span>`;
+
+              let tooltipText = "";
+              series.forEach((s, i) => {
+                if (i > 1) {
+                  // Skip candlestick and volume
+                  const val = s[dataPointIndex];
+                  if (val) {
+                    tooltipText += `<div><span>${
+                      w.globals.seriesNames[i]
+                    }:</span> <span style="font-weight: bold">${val.toFixed(
+                      2
+                    )}</span></div>`;
+                  }
+                }
+              });
+              return `<div class="apexcharts-tooltip-title" style="background: #ECEFF1; color: #333">${date}</div><div class="apexcharts-tooltip-series-group" style="padding:5px">${tooltipText}</div>`;
+            },
+          },
         };
 
         chart = new ApexCharts(document.querySelector("#chart"), options);
@@ -573,6 +614,31 @@
                 { ...chart.w.config.yaxis[1], show: true }, // 🔑 成交量永遠顯示
                 { ...chart.w.config.yaxis[2], show: momentumSelected },
               ],
+            });
+          };
+          checkbox.onmouseenter = () => {
+            const name = checkbox.value;
+            // 找對應 series index
+            const idx = chart.w.globals.seriesNames.indexOf(name);
+            if (idx >= 0) {
+              chart.updateOptions({
+                stroke: {
+                  width: chart.w.config.series.map(
+                    (s, i) => (i === idx ? 4 : 1) // hover 的那條加粗
+                  ),
+                },
+              });
+            }
+          };
+
+          checkbox.onmouseleave = () => {
+            // 滑鼠離開 → 全部恢復成一般寬度
+            chart.updateOptions({
+              stroke: {
+                width: chart.w.config.series.map((s) =>
+                  s.type === "line" ? 2 : 1
+                ),
+              },
             });
           };
         });
