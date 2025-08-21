@@ -5,6 +5,32 @@
     <title>股票資料展示</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script>
+      if (
+        location.hash.includes("access_token") &&
+        !location.pathname.endsWith("ResetPassword.html")
+      ) {
+        // 重導向到正確頁面
+        const target = "/StockWebPage/ResetPassword.html" + location.hash;
+        location.replace(target);
+      }
+    </script>
+    <script>
+      window.addEventListener("load", () => {
+        const hash = window.location.hash;
+        if (hash.includes("access_token") && hash.includes("type=signup")) {
+          alert(" 驗證成功！您已完成註冊，可以登入系統了！");
+        }
+      });
+    </script>
+    <script>
+      // 如果網址包含 access_token，代表從驗證信回來
+      if (location.hash.includes("access_token")) {
+        // 導向 StockWebPage/index.html，並保留 access_token 等資訊
+        const redirectTarget = "/StockWebPage/index.html" + location.hash;
+        location.replace(redirectTarget);
+      }
+    </script>
     <style>
       body {
         display: flex;
@@ -64,16 +90,149 @@
         display: none;
         z-index: 10;
       }
+
+      /* 時間列容器 */
+      .time-range-bar {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        font-size: 15px;
+        font-family: Arial, sans-serif;
+      }
+
+      /* 單個選項 */
+      .time-range-item {
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: background 0.2s, color 0.2s;
+      }
+
+      /* 預設樣式 */
+      .time-range-item:hover {
+        background-color: #f2f2f2;
+      }
+
+      /* 選中狀態 */
+      .time-range-item.active {
+        background-color: #f0f0f0;
+        font-weight: bold;
+      }
+
+      /* 日曆圖案按鈕 */
+      .calendar-btn {
+        cursor: pointer;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        transition: background 0.2s;
+      }
+
+      .calendar-btn:hover {
+        background-color: #f2f2f2;
+      }
+
+      .calendar-btn svg {
+        width: 18px;
+        height: 18px;
+        fill: #333;
+      }
+
+      /* 自訂時間容器（初始隱藏） */
+      #customDateRange {
+        display: none;
+        align-items: center;
+        gap: 6px;
+        margin-left: 8px;
+      }
+
+      #customDateRange input[type="date"] {
+        padding: 4px 6px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        font-size: 14px;
+      }
+
+      #customDateRange button {
+        padding: 4px 8px;
+        font-size: 14px;
+        background-color: #2196f3;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      #customDateRange button:hover {
+        background-color: #1976d2;
+      }
       h1,
       h2,
       h3 {
         color: #333;
+      }
+
+      .menu-container {
+        position: absolute;
+        top: 10px;
+        right: 20px;
+        font-size: 24px;
+        z-index: 999;
+      }
+
+      .menu-icon {
+        position: relative;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .dropdown {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: 30px;
+        background-color: #fff;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        min-width: 120px;
+      }
+
+      .dropdown a {
+        display: block;
+        padding: 10px 15px;
+        color: #333;
+        text-decoration: none;
+        font-size: 14px;
+      }
+
+      .dropdown a:hover {
+        background-color: #f2f2f2;
       }
     </style>
   </head>
   <body>
     <div id="main-content">
       <h1>股票資料</h1>
+      <!-- 加一個「三槓選單」 -->
+      <div class="menu-container" id="menuContainer">
+        <div class="menu-icon">
+          ☰
+          <div class="dropdown" id="dropdownMenu">
+            <div
+              id="user-email"
+              style="padding: 8px 15px; font-weight: bold"
+            ></div>
+            <a id="login-btn" href="login.html">登入</a>
+            <a id="register-btn" href="register.html">註冊</a>
+            <a id="logout-btn" href="#" onclick="logout()" style="display: none"
+              >登出</a
+            >
+          </div>
+        </div>
+      </div>
 
       <label for="symbolInput">搜尋股票：</label>
       <input
@@ -84,18 +243,6 @@
       />
       <div id="suggestions"></div>
 
-      <div style="text-align: left; margin: 10px 0">
-        <button onclick="loadStockWithRange(getSymbol(), '5d')">5天</button>
-        <button onclick="loadStockWithRange(getSymbol(), '1m')">1個月</button>
-        <button onclick="loadStockWithRange(getSymbol(), '3m')">3個月</button>
-        <button onclick="loadStockWithRange(getSymbol(), '6m')">半年</button>
-        <button onclick="loadStockWithRange(getSymbol(), 'ytd')">
-          年初至今
-        </button>
-        <button onclick="loadStockWithRange(getSymbol(), '1y')">一年</button>
-        <button onclick="loadStockWithRange(getSymbol(), '5y')">五年</button>
-      </div>
-
       <div>
         <h2
           id="chartTitle"
@@ -105,36 +252,63 @@
           id="ohlcInfo"
           style="text-align: left; font-size: 16px; padding: 5px 0"
         ></div>
+        <div class="time-range-bar">
+          <div class="time-range-item" onclick="setActive(this, '5d')">5天</div>
+          <div class="time-range-item" onclick="setActive(this, '1m')">1月</div>
+          <div class="time-range-item" onclick="setActive(this, '3m')">3月</div>
+          <div class="time-range-item" onclick="setActive(this, '6m')">6月</div>
+          <div class="time-range-item" onclick="setActive(this, 'ytd')">
+            YTD
+          </div>
+          <div class="time-range-item" onclick="setActive(this, '1y')">1年</div>
+          <div class="time-range-item" onclick="setActive(this, '5y')">5年</div>
+
+          <!-- 日曆按鈕與自訂時間容器 -->
+          <div class="calendar-btn" onclick="toggleCustomDate()">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+              <path
+                d="M19 4h-1V2h-2v2H8V2H6v2H5C3.9 4 3 4.9 3 6v14c0 
+      1.1.9 2 2 2h14c1.1 0 2-.9 
+      2-2V6c0-1.1-.9-2-2-2zm0 
+      16H5V9h14v11z"
+              />
+            </svg>
+          </div>
+          <div id="customDateRange">
+            起：<input type="date" id="customStart" /> 迄：<input
+              type="date"
+              id="customEnd"
+            />
+            <button onclick="loadStockWithRange(getSymbol(), 'custom')">
+              查詢
+            </button>
+          </div>
+        </div>
         <div id="chart"></div>
       </div>
-
-      <table id="stockTable">
-        <thead>
-          <tr>
-            <th>日期</th>
-            <th>股票代號</th>
-            <th>開盤價</th>
-            <th>最高價</th>
-            <th>最低價</th>
-            <th>收盤價</th>
-            <th>成交量</th>
-          </tr>
-        </thead>
-        <tbody id="stockBody"></tbody>
-      </table>
     </div>
 
-    <div id="main-chart-row" style="display: flex; align-items: stretch">
+    <div
+      id="main-chart-row"
+      style="display: flex; align-items: stretch; min-height: 500px"
+    >
       <!-- 圖表 -->
       <div style="flex: 1">
         <div id="chart" style="min-height: 500px"></div>
       </div>
 
       <!-- 右側功能（與圖表等高） -->
-      <div style="width: 400px; margin-left: 10px">
-        <div style="display: flex; height: 100%">
+      <div
+        style="
+          margin-left: 10px;
+          display: flex;
+          flex-direction: column;
+          margin-top: 250px;
+        "
+      >
+        <div style="flex: 1; display: flex">
           <!-- 技術指標控制 -->
-          <div style="flex: 1; padding: 10px">
+          <div style="width: 140px; flex: 1; padding: 5px">
             <h3 style="margin-top: 0">顯示技術線</h3>
             <div class="checkbox-group">
               <label
@@ -205,7 +379,7 @@
           </div>
 
           <!-- 條件判斷區 -->
-          <div style="flex: 1; padding: 10px">
+          <div style="width: 180px; flex: 1; padding: 5px">
             <h3 style="margin-top: 0">條件判斷選擇</h3>
             <div class="checkbox-group">
               <label
@@ -240,6 +414,97 @@
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNienpmamxtaHZ1Y2h6d3FsbGdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3NDE2OTQsImV4cCI6MjA2ODMxNzY5NH0.fvDVLvGLQdMRuCMXmja8ltpXC3TcjZxq78xbnt9Bh-U";
 
       const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+      const menuContainer = document.getElementById("menuContainer");
+      const dropdownMenu = document.getElementById("dropdownMenu");
+
+      // 註冊點擊連結
+      async function handleRedirect() {
+        const hash = window.location.hash;
+        if (hash && hash.includes("access_token")) {
+          const { data, error } = await client.auth.getSessionFromUrl({
+            storeSession: true,
+          });
+          if (error) {
+            console.error("處理 redirect 登入失敗:", error.message);
+            return;
+          }
+          console.log("登入成功，使用者資訊：", data.session?.user);
+
+          // 可導向到主畫面或清除 URL 中的 token
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname
+          );
+        }
+      }
+      handleRedirect();
+
+      // 滑鼠移入顯示選單
+      menuContainer.addEventListener("mouseenter", () => {
+        dropdownMenu.style.display = "block";
+      });
+
+      // 滑鼠移出整個容器隱藏選單
+      menuContainer.addEventListener("mouseleave", () => {
+        dropdownMenu.style.display = "none";
+      });
+
+      // 登出
+      async function logout() {
+        const { error } = await client.auth.signOut();
+        if (!error) {
+          alert("已登出");
+          checkLoginStatus();
+          hideMenu();
+        }
+      }
+
+      // 判斷登入狀態
+      async function checkLoginStatus() {
+        const {
+          data: { user },
+        } = await client.auth.getUser();
+
+        const emailSpan = document.getElementById("user-email");
+        const loginBtn = document.getElementById("login-btn");
+        const registerBtn = document.getElementById("register-btn");
+        const logoutBtn = document.getElementById("logout-btn");
+
+        if (user) {
+          emailSpan.textContent = user.email;
+          emailSpan.style.display = "block";
+          loginBtn.style.display = "none";
+          registerBtn.style.display = "none";
+          logoutBtn.style.display = "block";
+        } else {
+          emailSpan.textContent = "";
+          emailSpan.style.display = "none";
+          loginBtn.style.display = "block";
+          registerBtn.style.display = "block";
+          logoutBtn.style.display = "none";
+        }
+      }
+
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
+
+      if (accessToken && refreshToken) {
+        supabase.auth
+          .setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          })
+          .then(() => {
+            // 成功登入，跳轉或顯示登入狀態
+            window.location.hash = ""; // 清掉 URL hash
+            alert("登入成功");
+          });
+      }
+      window.onload = checkLoginStatus;
+
       let chart;
       let originalMinX = null;
       let originalMaxX = null;
@@ -289,7 +554,9 @@
 
         const { data, error } = await client
           .from("stocks")
-          .select("*")
+          .select(
+            'date, symbol, open, high, low, close, volume, "Sma 5", "Sma 10", "Sma 20", "Sma 60", "Sma 120", "Sma 240", Macd, K, D, J, Bias'
+          )
           .eq("symbol", symbol)
           .order("date", { ascending: false })
           .limit(count);
@@ -299,31 +566,25 @@
           (a, b) => new Date(a.date) - new Date(b.date)
         );
         displayStockData(sortedData, symbol);
+
+        console.log("symbol:", symbol, "count:", count);
+        console.log("error:", error);
+        console.log("data:", data);
       }
 
       function displayStockData(data, symbol) {
-        window.stockData = data; // Store data globally
-        const tbody = document.getElementById("stockBody");
-        tbody.innerHTML = "";
-        data
-          .slice()
-          .reverse()
-          .slice(0, 20)
-          .forEach((row) => {
-            // Display latest 20 rows
-            const tr = document.createElement("tr");
-            tr.innerHTML = `
-                  <td>${row.date}</td><td>${row.symbol}</td>
-                  <td>${parseFloat(row.open).toFixed(2)}</td>
-                  <td>${parseFloat(row.high).toFixed(2)}</td>
-                  <td>${parseFloat(row.low).toFixed(2)}</td>
-                  <td>${parseFloat(row.close).toFixed(2)}</td>
-                  <td>${parseInt(row.volume).toLocaleString()}</td>`;
-            tbody.appendChild(tr);
-          });
+        window.stockData = data;
 
-        const chartData = data.map((row) => ({
-          x: new Date(row.date),
+        const tradingDates = data.map((row) => {
+          const date = new Date(row.date);
+          return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+            2,
+            "0"
+          )}-${String(date.getDate()).padStart(2, "0")}`;
+        });
+
+        const chartData = data.map((row, idx) => ({
+          x: idx,
           y: [
             parseFloat(row.open),
             parseFloat(row.high),
@@ -332,51 +593,79 @@
           ],
         }));
 
-        const volumeData = data.map((row) => ({
-          x: new Date(row.date),
+        const volumeData = data.map((row, idx) => ({
+          x: idx,
           y: parseFloat(row.volume),
         }));
-
-        const indicatorSeries = [];
-        allIndicators.forEach((indicator) => {
-          const checked = document.querySelector(
-            `.indicator-check[value="${indicator}"]`
-          )?.checked;
-          const dataSeries = data.map((row) => ({
-            x: new Date(row.date),
-            y: parseFloat(row[indicator]) || null,
-          }));
-
-          indicatorSeries.push({
-            name: indicator,
-            type: "line",
-            data: dataSeries,
-            visible: !!checked, // 初始不顯示
-          });
-        });
 
         const prices = data.flatMap((r) => [
           parseFloat(r.high),
           parseFloat(r.low),
         ]);
-        const minY = Math.min(...prices) * 0.98;
-        const maxY = Math.max(...prices) * 1.02;
+
+        // 標題
         document.getElementById("chartTitle").innerText = `${symbol}`;
         document.getElementById("ohlcInfo").innerHTML =
           "將滑鼠懸停在圖表上以查看詳細資訊";
+
+        const minY = Math.min(...prices) * 0.3;
+        const maxY = Math.max(...prices) * 1.05;
 
         if (chart) chart.destroy();
 
         const options = {
           chart: { type: "candlestick", height: 500, zoom: { enabled: true } },
+          legend: {
+            show: false,
+          },
 
+          xaxis: {
+            type: "category",
+            categories: tradingDates,
+            tickAmount: 20,
+            labels: {
+              rotate: -45,
+              formatter: (v) => (v ? v.split("-").slice(1).join("/") : ""),
+            },
+          },
+          yaxis: [
+            {
+              title: { text: "價格 / SMA / Bias" },
+              min: minY,
+              max: maxY,
+              labels: { formatter: (val) => Number(val.toFixed(2)) },
+              opposite: false, // 🔑 主價格軸在左
+            },
+            {
+              title: { text: "Volume" },
+              labels: { formatter: (val) => Number(val.toFixed(0)) },
+              opposite: true, // 🔑 成交量永遠在右
+              show: true,
+            },
+            {
+              title: { text: "MACD / KDJ " },
+              show: false,
+              tickAmount: 5,
+              labels: { formatter: (val) => Number(val.toFixed(2)) },
+              opposite: false, // 🔑 動量軸也在左
+            },
+          ],
+
+          series: [
+            { name: "K線圖", type: "candlestick", data: chartData },
+            {
+              name: "成交量",
+              type: "bar",
+              data: volumeData,
+              yAxisIndex: 1,
+              color: "rgba(100,149,237,0.4)",
+            },
+          ],
           tooltip: {
             shared: true,
             custom: function ({ series, seriesIndex, dataPointIndex, w }) {
               const ohlc = w.globals.initialSeries[0].data[dataPointIndex].y;
-              const date = new Date(
-                w.globals.initialSeries[0].data[dataPointIndex].x
-              ).toLocaleDateString();
+              const date = tradingDates[dataPointIndex];
               const color = ohlc[3] > ohlc[0] ? "#2ecc71" : "#e74c3c";
               document.getElementById("ohlcInfo").innerHTML =
                 `日期: ${date}　` +
@@ -403,52 +692,129 @@
               return `<div class="apexcharts-tooltip-title" style="background: #ECEFF1; color: #333">${date}</div><div class="apexcharts-tooltip-series-group" style="padding:5px">${tooltipText}</div>`;
             },
           },
-          xaxis: { type: "datetime" },
-          yaxis: [
-            {
-              seriesName: "K線圖",
-              min: minY,
-              max: maxY,
-              labels: { formatter: (val) => val.toFixed(2) },
-            },
-            { seriesName: "成交量", show: false, opposite: true },
-          ],
-          stroke: { width: [2, 1, 1, 1, 1, 1, 1, 1] }, // Adjust stroke width for different series
-          markers: { size: 0 },
-          series: [
-            { name: "K線圖", type: "candlestick", data: chartData },
-            {
-              name: "成交量",
-              type: "bar",
-              data: volumeData,
-              yAxisIndex: 1,
-              color: "rgba(100,149,237,0.4)",
-            },
-            ...indicatorSeries,
-          ],
         };
 
         chart = new ApexCharts(document.querySelector("#chart"), options);
         chart.render();
 
-        // After rendering, check for active rules
-        highlightConditions(
-          Array.from(document.querySelectorAll(".rule-check:checked")).map(
-            (el) => el.value
-          )
-        );
-      }
+        const indicatorFieldMap = {
+          "Sma 5": "Sma 5",
+          "Sma 10": "Sma 10",
+          "Sma 20": "Sma 20",
+          "Sma 60": "Sma 60",
+          "Sma 120": "Sma 120",
+          "Sma 240": "Sma 240",
+          MACD: "Macd",
+          K: "K",
+          D: "D",
+          J: "J",
+          Bias: "Bias",
+        };
 
-      // --- Start of Integrated Features ---
+        const indicatorGroups = {
+          price: [
+            "Sma 5",
+            "Sma 10",
+            "Sma 20",
+            "Sma 60",
+            "Sma 120",
+            "Sma 240",
+            "Bias",
+          ],
+          momentum: ["MACD", "K", "D", "J"],
+        };
 
-      document.querySelectorAll(".rule-check").forEach((checkbox) => {
-        checkbox.addEventListener("change", () => {
-          const activeRules = Array.from(
-            document.querySelectorAll(".rule-check:checked")
-          ).map((el) => el.value);
-          highlightConditions(activeRules);
+        document.querySelectorAll(".indicator-check").forEach((checkbox) => {
+          checkbox.onchange = () => {
+            const checked = Array.from(
+              document.querySelectorAll(".indicator-check:checked")
+            ).map((cb) => cb.value);
+
+            // 🔑 永遠保留 K線 + 成交量
+            let newSeries = [
+              { name: "K線圖", type: "candlestick", data: chartData },
+              {
+                name: "成交量",
+                type: "bar",
+                data: volumeData,
+                yAxisIndex: 1,
+                color: "rgba(100,149,237,0.4)",
+              },
+            ];
+
+            // 如果沒勾 → 只顯示 K線+成交量
+            if (checked.length === 0) {
+              chart.updateOptions({
+                series: newSeries,
+                yaxis: [
+                  { ...chart.w.config.yaxis[0], show: true },
+                  { ...chart.w.config.yaxis[1], show: true },
+                  { ...chart.w.config.yaxis[2], show: false },
+                ],
+              });
+              return;
+            }
+
+            let momentumSelected = false;
+
+            checked.forEach((name) => {
+              const field = indicatorFieldMap[name];
+              if (!field) return;
+              const dataSeries = data.map((row, idx) => ({
+                x: idx,
+                y: row[field] != null ? parseFloat(row[field]) : null,
+              }));
+
+              let yAxisIndex = 0;
+              if (indicatorGroups.momentum.includes(name)) {
+                yAxisIndex = 2;
+                momentumSelected = true;
+              }
+
+              newSeries.push({
+                name,
+                type: "line",
+                data: dataSeries,
+                yAxisIndex,
+              });
+            });
+
+            chart.updateOptions({
+              series: newSeries,
+              yaxis: [
+                { ...chart.w.config.yaxis[0], show: true },
+                { ...chart.w.config.yaxis[1], show: true }, // 🔑 成交量永遠顯示
+                { ...chart.w.config.yaxis[2], show: momentumSelected },
+              ],
+            });
+          };
+          checkbox.onmouseenter = () => {
+            const name = checkbox.value;
+            // 找對應 series index
+            const idx = chart.w.globals.seriesNames.indexOf(name);
+            if (idx >= 0) {
+              chart.updateOptions({
+                stroke: {
+                  width: chart.w.config.series.map(
+                    (s, i) => (i === idx ? 4 : 1) // hover 的那條加粗
+                  ),
+                },
+              });
+            }
+          };
+
+          checkbox.onmouseleave = () => {
+            // 滑鼠離開 → 全部恢復成一般寬度
+            chart.updateOptions({
+              stroke: {
+                width: chart.w.config.series.map((s) =>
+                  s.type === "line" ? 2 : 1
+                ),
+              },
+            });
+          };
         });
-      });
+      }
 
       function highlightConditions(rules) {
         if (!window.stockData || window.stockData.length === 0) return;
@@ -458,13 +824,12 @@
           const prev = window.stockData[i - 1];
           if (!prev) return;
 
-          // Note: Supabase must provide columns like 'Sma 5', 'Sma 20', 'MACD', 'MACD_signal', 'K', 'D', 'Bias'
           const sma5 = parseFloat(row["Sma 5"]);
           const sma20 = parseFloat(row["Sma 20"]);
           const prevSma5 = parseFloat(prev["Sma 5"]);
           const prevSma20 = parseFloat(prev["Sma 20"]);
           const macd = parseFloat(row["MACD"]);
-          const macdSignal = parseFloat(row["MACD_signal"]); // Assumes 'MACD_signal' column exists
+          const macdSignal = parseFloat(row["MACD_signal"]);
           const prevMacd = parseFloat(prev["MACD"]);
           const prevMacdSignal = parseFloat(prev["MACD_signal"]);
           const k = parseFloat(row["K"]);
@@ -473,40 +838,120 @@
           const prevD = parseFloat(prev["D"]);
           const bias = parseFloat(row["Bias"]);
 
+          // 畫倒三角形的工具
+          function makePoint(x, y, text, color = "#FF4560") {
+            return {
+              x: new Date(row.date).getTime(),
+              y: y,
+              marker: {
+                size: 6,
+                fillColor: color,
+                strokeColor: "#fff",
+                shape: "triangleDown", // 🔑 倒三角形
+              },
+              label: {
+                borderColor: color,
+                style: {
+                  background: color,
+                  color: "#fff",
+                  fontSize: "10px",
+                },
+                text: text,
+              },
+            };
+          }
+
+          // SMA 交叉
           if (rules.includes("sma-cross")) {
             if (prevSma5 < prevSma20 && sma5 >= sma20) {
-              annotations.push(makeAnnotation(row.date, "SMA↑"));
+              annotations.push(
+                makePoint(row.date, row.close, "SMA↑", "#e67e22")
+              );
             }
           }
 
+          // MACD 交叉
           if (rules.includes("macd-cross")) {
             if (prevMacd < prevMacdSignal && macd >= macdSignal) {
-              annotations.push(makeAnnotation(row.date, "MACD↑"));
+              annotations.push(
+                makePoint(row.date, row.close, "MACD↑", "#9b59b6")
+              );
             }
           }
 
+          // KD 交叉
           if (rules.includes("kd-cross")) {
             if (prevK < prevD && k >= d && k < 20) {
-              annotations.push(makeAnnotation(row.date, "KD↑"));
+              annotations.push(
+                makePoint(row.date, row.close, "KD↑", "#2ecc71")
+              );
             }
           }
 
+          // Bias 高
           if (rules.includes("bias-high") && bias > 5) {
-            annotations.push(makeAnnotation(row.date, "Bias>5", "#E74C3C"));
+            annotations.push(
+              makePoint(row.date, row.close, "Bias>5", "#E74C3C")
+            );
           }
 
+          // Bias 低
           if (rules.includes("bias-low") && bias < -5) {
-            annotations.push(makeAnnotation(row.date, "Bias<-5", "#2ECC71"));
+            annotations.push(
+              makePoint(row.date, row.close, "Bias<-5", "#3498db")
+            );
           }
         });
 
         if (window.chart) {
           chart.updateOptions({
-            annotations: { xaxis: annotations },
+            annotations: { points: annotations },
           });
         }
       }
 
+      document.querySelectorAll(".rule-check").forEach((cb) => {
+        cb.onchange = () => {
+          const rules = Array.from(
+            document.querySelectorAll(".rule-check:checked")
+          ).map((c) => c.value);
+          highlightConditions(rules);
+        };
+      });
+
+      function toggleCustomDate() {
+        const div = document.getElementById("customDateRange");
+        if (div.style.display === "none" || div.style.display === "") {
+          div.style.display = "block";
+        } else {
+          div.style.display = "none";
+        }
+      }
+
+      // 時間功能列
+      function setActive(el, range) {
+        document
+          .querySelectorAll(".time-range-item")
+          .forEach((item) => item.classList.remove("active"));
+        el.classList.add("active");
+        // 按其他時間按鈕時隱藏自訂時間容器
+        document.getElementById("customDateRange").style.display = "none";
+        // 這裡是原本的載入函數
+        loadStockWithRange(getSymbol(), range);
+      }
+      function toggleCustomDate() {
+        const container = document.getElementById("customDateRange");
+        const isHidden =
+          container.style.display === "none" || container.style.display === "";
+        // 顯示或隱藏
+        container.style.display = isHidden ? "flex" : "none";
+        // 取消其他時間按鈕的選中狀態
+        document
+          .querySelectorAll(".time-range-item")
+          .forEach((item) => item.classList.remove("active"));
+      }
+
+      // 畫圖?
       function makeAnnotation(time, label, color = "#FF4560") {
         return {
           x: new Date(time).getTime(),
@@ -577,21 +1022,6 @@
 
       document.addEventListener("DOMContentLoaded", () => {
         loadStockWithRange("AAPL", "1y"); // Load Apple stock for 1 year by default
-      });
-
-      document.querySelectorAll(".indicator-check").forEach((checkbox) => {
-        checkbox.addEventListener("change", () => {
-          const selected = Array.from(
-            document.querySelectorAll(".indicator-check")
-          ).map((el) => ({ name: el.value, visible: el.checked }));
-
-          selected.forEach((s) => {
-            const i = chart.w.config.series.findIndex(
-              (ser) => ser.name === s.name
-            );
-            if (i >= 0) chart.toggleSeries(s.name); // toggle 可自動切換顯示/隱藏
-          });
-        });
       });
     </script>
   </body>
