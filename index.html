@@ -608,7 +608,7 @@
         document.getElementById("ohlcInfo").innerHTML =
           "將滑鼠懸停在圖表上以查看詳細資訊";
 
-        const minY = Math.min(...prices) * 0.95;
+        const minY = Math.min(...prices) * 0.3;
         const maxY = Math.max(...prices) * 1.05;
 
         if (chart) chart.destroy();
