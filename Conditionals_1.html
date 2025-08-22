@@ -384,7 +384,7 @@
             <div class="checkbox-group">
               <label
                 ><input type="checkbox" class="rule-check" value="sma-cross" />
-                SMA 短期 > 長期</label
+                SMA 5 > SMA 20</label
               >
               <label
                 ><input type="checkbox" class="rule-check" value="macd-cross" />
@@ -817,11 +817,13 @@
       }
 
       function highlightConditions(rules) {
+        console.log("row keys:", Object.keys(window.stockData[0]));
+
         if (!window.stockData || window.stockData.length === 0) return;
 
         let annotations = [];
         window.stockData.forEach((row, i) => {
-          const prev = window.stockData[i - 1];
+          const prev = window.stockData[i - 1]; // 取得上一筆資料
           if (!prev) return;
 
           const sma5 = parseFloat(row["Sma 5"]);
@@ -838,23 +840,28 @@
           const prevD = parseFloat(prev["D"]);
           const bias = parseFloat(row["Bias"]);
 
+          // debug 用
+          console.log("date:", row.date, "sma5:", sma5, "sma20:", sma20);
+
           // 畫倒三角形的工具
           function makePoint(x, y, text, color = "#FF4560") {
             return {
-              x: new Date(row.date).getTime(),
-              y: y,
+              x: x, // ✅ 用 idx
+              y: row.low * 0.98,
               marker: {
-                size: 6,
-                fillColor: color,
-                strokeColor: "#fff",
-                shape: "triangleDown", // 🔑 倒三角形
+                size: 5, // 比原本大一點
+                fillColor: "#000000", // 黑色實心
+                strokeColor: "#000000",
+                shape: "triangle", // ✅ 官方支援
               },
               label: {
-                borderColor: color,
+                borderColor: "transparent",
+                offsetY: 30,
                 style: {
-                  background: color,
-                  color: "#fff",
-                  fontSize: "10px",
+                  background: "transparent",
+                  color: "#000000",
+                  fontSize: "12px",
+                  fontWeight: "bold",
                 },
                 text: text,
               },
@@ -864,9 +871,7 @@
           // SMA 交叉
           if (rules.includes("sma-cross")) {
             if (prevSma5 < prevSma20 && sma5 >= sma20) {
-              annotations.push(
-                makePoint(row.date, row.close, "SMA↑", "#e67e22")
-              );
+              annotations.push(makePoint(i, row.close, "SMA↑", "#e67e22"));
             }
           }
 
@@ -1021,7 +1026,7 @@
       });
 
       document.addEventListener("DOMContentLoaded", () => {
-        loadStockWithRange("AAPL", "1y"); // Load Apple stock for 1 year by default
+        loadStockWithRange("AAPL", "3m"); // Load Apple stock for 1 year by default
       });
     </script>
   </body>
