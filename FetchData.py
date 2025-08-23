@@ -85,6 +85,7 @@ for symbol in US_STOCK_NAME:
         "Sma 120": today_row["Sma_120"],
         "Sma 240": today_row["Sma_240"],
         "Macd": today_row["Macd"],
+        "Macd": today_row["Macd_Dea"],
         "K": today_row["K"],
         "D": today_row["D"],
         "J": today_row["J"],
