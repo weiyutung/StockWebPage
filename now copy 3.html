@@ -276,8 +276,16 @@
               >
               <label
                 ><input type="checkbox" class="indicator-check" value="MACD" />
-                MACD</label
-              >
+                DIF (快線)
+              </label>
+              <label
+                ><input
+                  type="checkbox"
+                  class="indicator-check"
+                  value="Macd Dea"
+                />
+                DEA (慢線)
+              </label>
               <label
                 ><input type="checkbox" class="indicator-check" value="K" />
                 K</label
@@ -345,6 +353,7 @@
         "Sma 120",
         "Sma 240",
         "MACD",
+        "MACD Dea",
         "K",
         "D",
         "J",
@@ -383,7 +392,7 @@
         const { data, error } = await client
           .from("stocks")
           .select(
-            'date, symbol, open, high, low, close, volume, "Sma 5", "Sma 10", "Sma 20", "Sma 60", "Sma 120", "Sma 240", Macd, K, D, J, Bias'
+            'date, symbol, open, high, low, close, volume, "Sma 5", "Sma 10", "Sma 20", "Sma 60", "Sma 120", "Sma 240", Macd, "Macd Dea", K, D, J, Bias'
           )
           .eq("symbol", symbol)
           .order("date", { ascending: false })
@@ -533,6 +542,7 @@
           "Sma 120": "Sma 120",
           "Sma 240": "Sma 240",
           MACD: "Macd",
+          "Macd Dea": "Macd Dea",
           K: "K",
           D: "D",
           J: "J",
@@ -540,16 +550,8 @@
         };
 
         const indicatorGroups = {
-          price: [
-            "Sma 5",
-            "Sma 10",
-            "Sma 20",
-            "Sma 60",
-            "Sma 120",
-            "Sma 240",
-            "Bias",
-          ],
-          momentum: ["MACD", "K", "D", "J"],
+          price: ["Sma 5", "Sma 10", "Sma 20", "Sma 60", "Sma 120", "Sma 240"],
+          momentum: ["Bias", "Macd", "Macd Dea", "K", "D", "J"],
         };
 
         document.querySelectorAll(".indicator-check").forEach((checkbox) => {
@@ -658,9 +660,9 @@
           const prevSma5 = parseFloat(prev["Sma 5"]);
           const prevSma20 = parseFloat(prev["Sma 20"]);
           const macd = parseFloat(row["MACD"]);
-          const macdSignal = parseFloat(row["MACD_signal"]); // Assumes 'MACD_signal' column exists
+          const macdSignal = parseFloat(row["Macd Dea"]); // Assumes 'MACD_signal' column exists
           const prevMacd = parseFloat(prev["MACD"]);
-          const prevMacdSignal = parseFloat(prev["MACD_signal"]);
+          const prevMacdSignal = parseFloat(prev["Macd Dea"]);
           const k = parseFloat(row["K"]);
           const d = parseFloat(row["D"]);
           const prevK = parseFloat(prev["K"]);
