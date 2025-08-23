@@ -3,25 +3,25 @@ import pandas_ta as ta
 import pandas as pd
 from supabase import create_client
 
-# ✅ Supabase 連線設定
+#  Supabase 連線設定
 SUPABASE_URL = "https://sbzzfjlmhvuchzwqllgf.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNienpmamxtaHZ1Y2h6d3FsbGdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3NDE2OTQsImV4cCI6MjA2ODMxNzY5NH0.fvDVLvGLQdMRuCMXmja8ltpXC3TcjZxq78xbnt9Bh-U"
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ✅ 股票清單
+#  股票清單
 US_STOCK_NAME = [
     'AAPL', 'AMGN', 'AXP', 'BA', 'CAT', 'CRM', 'CSCO', 'CVX', 'DIS', 'GS',
     'HD', 'HON', 'IBM', 'INTC', 'JNJ', 'JPM', 'KO', 'MCD', 'MMM', 'MRK',
     'MSFT', 'NKE', 'PG', 'TRV', 'UNH', 'V', 'VZ', 'WBA', 'WMT'
 ]
 
-# ✅ 技術指標抓取與上傳
+#  技術指標抓取與上傳
 for symbol in US_STOCK_NAME:
     print(f"抓取 {symbol} 資料中...")
     stock = yf.Ticker(symbol)
     hist = stock.history(start="2015-01-01")
 
-    # 計算技術指標
+    # ===== 技術指標 =====
     hist["Volume_Percentage"] = hist["Volume"].pct_change() * 100
     hist["Sma_5"] = ta.sma(hist["Close"], length=5)
     hist["Sma_10"] = ta.sma(hist["Close"], length=10)
@@ -29,7 +29,12 @@ for symbol in US_STOCK_NAME:
     hist["Sma_60"] = ta.sma(hist["Close"], length=60)
     hist["Sma_120"] = ta.sma(hist["Close"], length=120)
     hist["Sma_240"] = ta.sma(hist["Close"], length=240)
-    hist["Macd"] = ta.macd(hist["Close"])["MACD_12_26_9"]
+
+    #  MACD → DIF 與 DEA
+    macd_df = ta.macd(hist["Close"])
+    hist["Macd"] = macd_df["MACD_12_26_9"]      # DIF 快線
+    hist["Macd_Dea"] = macd_df["MACDs_12_26_9"]  # DEA 慢線 (Signal)
+
     stoch = ta.stoch(hist["High"], hist["Low"], hist["Close"])
     hist["K"] = stoch["STOCHk_14_3_3"]
     hist["D"] = stoch["STOCHd_14_3_3"]
@@ -50,7 +55,7 @@ for symbol in US_STOCK_NAME:
     long_ma = hist["Volume"].rolling(window=20).mean()
     hist["Volume_Oscillator"] = (short_ma - long_ma) / long_ma * 100
 
-    # ✅ 整理並批量上傳
+    #  整理並批量上傳
     batch_data = []
     for index, row in hist.iterrows():
         data = {
@@ -68,7 +73,8 @@ for symbol in US_STOCK_NAME:
             "Sma 60": row["Sma_60"],
             "Sma 120": row["Sma_120"],
             "Sma 240": row["Sma_240"],
-            "Macd": row["Macd"],
+            "Macd": row["Macd"],          # DIF
+            "Macd Dea": row["Macd_Dea"],  # DEA
             "K": row["K"],
             "D": row["D"],
             "J": row["J"],
@@ -86,14 +92,14 @@ for symbol in US_STOCK_NAME:
             "Volume Oscillator": row["Volume_Oscillator"]
         }
 
-        # 過濾 NaN 轉換 None（可省略也可保留）
-        data = {k: (None if pd.isna(v) else round(v, 3) if isinstance(v, float) else v)
+        # NaN → None，四捨五入小數 3 位
+        data = {k: (None if pd.isna(v) else round(v, 10) if isinstance(v, float) else v)
                 for k, v in data.items()}
         batch_data.append(data)
 
-    # ✅ 每 500 筆分批上傳
+    #  每 500 筆分批上傳
     for i in range(0, len(batch_data), 500):
         print(f"寫入 {symbol} 第 {i} ~ {i+500} 筆")
         supabase.table("stocks").insert(batch_data[i:i+500]).execute()
 
-print(" 全部股票寫入完成")
+print(" 全部股票寫入完成 ")

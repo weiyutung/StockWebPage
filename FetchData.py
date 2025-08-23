@@ -42,6 +42,7 @@ for symbol in US_STOCK_NAME:
 
     macd_df = ta.macd(hist["Close"])
     hist["Macd"] = macd_df["MACD_12_26_9"] if macd_df is not None else None
+    hist["Macd_Dea"] = macd_df["MACDs_12_26_9"]  # DEA 慢線 (Signal)
 
     stoch = ta.stoch(hist["High"], hist["Low"], hist["Close"])
     hist["K"] = stoch["STOCHk_14_3_3"]
