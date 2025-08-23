@@ -522,6 +522,50 @@
       let originalMinX = null;
       let originalMaxX = null;
 
+      //保持顯示技術線
+      //儲存目前勾選的函式
+      function getCheckedIndicators() {
+        return Array.from(
+          document.querySelectorAll(".indicator-check:checked")
+        ).map((el) => el.value);
+      }
+
+      //還原勾選函式
+      function restoreCheckedIndicators(checkedIndicators) {
+        document.querySelectorAll(".indicator-check").forEach((el) => {
+          el.checked = checkedIndicators.includes(el.value);
+        });
+      }
+
+      //套用勾選的線到圖表
+      function applyIndicators() {
+        document.querySelectorAll(".indicator-check").forEach((checkbox) => {
+          checkbox.onchange(); // 觸發 onchange 更新線
+        });
+      }
+
+      //保持條件判斷選擇
+      //儲存條件判斷勾選狀態
+      function getCheckedRules() {
+        return Array.from(document.querySelectorAll(".rule-check:checked")).map(
+          (el) => el.value
+        );
+      }
+
+      //還原條件判斷勾選狀態
+      function restoreCheckedRules(checkedRules) {
+        document.querySelectorAll(".rule-check").forEach((el) => {
+          el.checked = checkedRules.includes(el.value);
+        });
+      }
+
+      //套用勾選的條件判斷到圖表
+      function applyRules() {
+        document.querySelectorAll(".rule-check").forEach((checkbox) => {
+          checkbox.onchange(); // 觸發 onchange 更新圖表標註
+        });
+      }
+
       const allIndicators = [
         "Sma 5",
         "Sma 10",
@@ -548,6 +592,9 @@
       }
 
       async function loadStockWithRange(symbol, range) {
+        const checkedIndicatorsBefore = getCheckedIndicators(); // 技術線
+        const checkedRulesBefore = getCheckedRules(); // 條件判斷
+
         const rangeToCount = {
           "5d": 5,
           "1m": 22,
@@ -579,7 +626,15 @@
         const sortedData = data.sort(
           (a, b) => new Date(a.date) - new Date(b.date)
         );
+
         displayStockData(sortedData, symbol);
+
+        // 還原狀態
+        restoreCheckedIndicators(checkedIndicatorsBefore);
+        applyIndicators();
+
+        restoreCheckedRules(checkedRulesBefore);
+        applyRules();
 
         console.log("symbol:", symbol, "count:", count);
         console.log("error:", error);
@@ -830,6 +885,13 @@
             });
           };
         });
+        // 顯示圖表後
+        // 圖表生成後
+        restoreCheckedIndicators(getCheckedIndicators());
+        applyIndicators();
+
+        restoreCheckedRules(getCheckedRules());
+        applyRules(); // 立即套用已勾選的線
       }
 
       function highlightConditions(rules) {
