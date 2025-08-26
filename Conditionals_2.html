@@ -356,15 +356,11 @@
                 SMA 240</label
               >
               <label
-                ><input type="checkbox" class="indicator-check" value="MACD" />
+                ><input type="checkbox" class="indicator-check" value="DIF" />
                 DIF (快線)
               </label>
               <label
-                ><input
-                  type="checkbox"
-                  class="indicator-check"
-                  value="Macd Dea"
-                />
+                ><input type="checkbox" class="indicator-check" value="DEA" />
                 DEA (慢線)
               </label>
               <label
@@ -387,8 +383,8 @@
           </div>
 
           <!-- 條件判斷區 -->
-          <div style="width: 180px; flex: 1; padding: 5px">
-            <h3 style="margin-top: 0">條件判斷選擇</h3>
+          <div style="width: 170px; flex: 1.5; padding: 5px">
+            <h3 style="margin-top: 0">條件判斷</h3>
             <div class="checkbox-group">
               <label
                 ><input type="checkbox" class="rule-check" value="sma-cross" />
@@ -400,12 +396,24 @@
               </label>
 
               <label
-                ><input type="checkbox" class="rule-check" value="macd-cross" />
-                MACD 上穿 Signal</label
+                ><input
+                  type="checkbox"
+                  class="rule-check"
+                  value="dif-above-dea"
+                />
+                MACD：DIF突破DEA</label
               >
               <label
-                ><input type="checkbox" class="rule-check" value="kd-cross" /> K
-                上穿 D 且 K < 20</label
+                ><input
+                  type="checkbox"
+                  class="rule-check"
+                  value="dea-below-dif"
+                />
+                MACD：DEA跌破DIF</label
+              >
+              <label
+                ><input type="checkbox" class="rule-check" value="kd-cross" />
+                K上穿D 且 K<20</label
               >
               <label
                 ><input type="checkbox" class="rule-check" value="bias-high" />
@@ -573,8 +581,8 @@
         "Sma 60",
         "Sma 120",
         "Sma 240",
-        "MACD",
-        "MACD Dea",
+        "DIF",
+        "DEA",
         "K",
         "D",
         "J",
@@ -588,7 +596,7 @@
       function selectSymbol(symbol) {
         document.getElementById("symbolInput").value = symbol;
         document.getElementById("suggestions").style.display = "none";
-        loadStockWithRange(symbol, "1y"); // Default to 1 year on new selection
+        loadStockWithRange(symbol, "3m"); // Default to 1 year on new selection
       }
 
       async function loadStockWithRange(symbol, range) {
@@ -616,7 +624,7 @@
         const { data, error } = await client
           .from("stocks")
           .select(
-            'date, symbol, open, high, low, close, volume, "Sma 5", "Sma 10", "Sma 20", "Sma 60", "Sma 120", "Sma 240", Macd,"Macd Dea", K, D, J, Bias'
+            'date, symbol, open, high, low, close, volume, "Sma 5", "Sma 10", "Sma 20", "Sma 60", "Sma 120", "Sma 240", "DIF", "DEA", K, D, J, Bias'
           )
           .eq("symbol", symbol)
           .order("date", { ascending: false })
@@ -707,7 +715,7 @@
           },
           yaxis: [
             {
-              title: { text: "價格 / SMA / Bias" },
+              title: { text: "價格 / SMA " },
               min: minY,
               max: maxY,
               labels: { formatter: (val) => Number(val.toFixed(2)) },
@@ -715,7 +723,36 @@
             },
             {
               title: { text: "Volume" },
-              labels: { formatter: (val) => Number(val.toFixed(0)) },
+              labels: {
+                formatter: function (val) {
+                  if (val >= 1_000_000_000) {
+                    return (val / 1_000_000_000).toFixed(0) + "B"; // 十億
+                  } else if (val >= 1_000_000) {
+                    return (val / 1_000_000).toFixed(0) + "M"; // 百萬
+                  } else if (val >= 1_000) {
+                    return (val / 1_000).toFixed(0) + "K"; // 千
+                  }
+                  return val.toFixed(0);
+                },
+              },
+              /*如果台股加進來前，用currentSymbol.endsWith(".TW");事先註記，平台可根據台股/美股變動單位
+                labels: {
+                  formatter: function (val) {
+                    const isTW = currentSymbol.endsWith(".TW"); // 判斷台股
+                    if (isTW) {
+                      if (val >= 1_000_000) return (val / 1_000_000).toFixed(2) + "M張";
+                      if (val >= 1_000) return (val / 1_000).toFixed(2) + "K張";
+                      return val.toFixed(0) + "張";
+                    } else {
+                      if (val >= 1_000_000_000) return (val / 1_000_000_000).toFixed(2) + "B";
+                      if (val >= 1_000_000) return (val / 1_000_000).toFixed(2) + "M";
+                      if (val >= 1_000) return (val / 1_000).toFixed(2) + "K";
+                      return val.toFixed(0);
+                    }
+                  },
+                }
+              */
+
               opposite: true, // 🔑 成交量永遠在右
               show: true,
             },
@@ -740,34 +777,62 @@
           ],
           tooltip: {
             shared: true,
-            custom: function ({ series, seriesIndex, dataPointIndex, w }) {
+            custom: function ({ series, dataPointIndex, w }) {
               const ohlc = w.globals.initialSeries[0].data[dataPointIndex].y;
               const date = tradingDates[dataPointIndex];
-              // 台灣/港股習慣
-              const color = ohlc[3] > ohlc[0] ? "#e74c3c" : "#2ecc71";
-              document.getElementById("ohlcInfo").innerHTML =
-                `日期: ${date}　` +
-                `<span style='color:${color}'>開: ${ohlc[0].toFixed(
-                  2
-                )} 高: ${ohlc[1].toFixed(2)} 低: ${ohlc[2].toFixed(
-                  2
-                )} 收: ${ohlc[3].toFixed(2)}</span>`;
 
-              let tooltipText = "";
-              series.forEach((s, i) => {
-                if (i > 1) {
-                  // Skip candlestick and volume
-                  const val = s[dataPointIndex];
-                  if (val) {
-                    tooltipText += `<div><span>${
-                      w.globals.seriesNames[i]
-                    }:</span> <span style="font-weight: bold">${val.toFixed(
-                      2
-                    )}</span></div>`;
+              // 判斷收盤價漲跌，決定顏色
+              const closeColor = ohlc[3] > ohlc[0] ? "#e74c3c" : "#2ecc71";
+
+              // 取得成交量
+              const volume = w.globals.initialSeries[1].data[dataPointIndex].y;
+
+              // 轉換成交量單位
+              function formatVolume(val) {
+                if (val >= 1e6) return (val / 1e6).toFixed(2) + "M";
+                if (val >= 1e3) return (val / 1e3).toFixed(2) + "K";
+                return val.toString();
+              }
+              const volumeFormatted = formatVolume(volume);
+
+              // ✅ 技術線數值（只顯示已勾選的）
+              let techLinesHtml = "";
+              const checked = getCheckedIndicators();
+              checked.forEach((name) => {
+                const idx = w.globals.seriesNames.indexOf(name);
+                if (idx >= 0) {
+                  const val = series[idx][dataPointIndex];
+                  if (val != null) {
+                    techLinesHtml += `<div style="color:${
+                      indicatorColors[name]
+                    };">
+                          ${name}: ${val.toFixed(2)}
+                        </div>`;
                   }
                 }
               });
-              return `<div class="apexcharts-tooltip-title" style="background: #ECEFF1; color: #333">${date}</div><div class="apexcharts-tooltip-series-group" style="padding:5px">${tooltipText}</div>`;
+
+              document.getElementById("ohlcInfo").innerHTML =
+                `日期: ${date}　` +
+                `<span style="color:black;">開:</span><span style="color:${closeColor};">${ohlc[0].toFixed(
+                  2
+                )}</span> ` +
+                `<span style="color:black;">高:</span><span style="color:${closeColor};">${ohlc[1].toFixed(
+                  2
+                )}</span> ` +
+                `<span style="color:black;">低:</span><span style="color:${closeColor};">${ohlc[2].toFixed(
+                  2
+                )}</span> ` +
+                `<span style="color:black;">收:</span><span style="color:${closeColor};">${ohlc[3].toFixed(
+                  2
+                )}</span>`;
+
+              return `
+                    <div style="background:rgba(255,255,255,0.85); padding:8px; border-radius:6px; font-size:13px;">
+                      <div style="font-weight:bold; margin-bottom:4px;">${date}</div>
+                      <div style="color:#555;">成交量: ${volumeFormatted}</div>
+                      ${techLinesHtml}
+                    </div>`;
             },
           },
         };
@@ -782,8 +847,8 @@
           "Sma 60": "Sma 60",
           "Sma 120": "Sma 120",
           "Sma 240": "Sma 240",
-          MACD: "Macd",
-          "Macd Dea": "Macd Dea",
+          DIF: "DIF",
+          DEA: "DEA",
           K: "K",
           D: "D",
           J: "J",
@@ -792,7 +857,7 @@
 
         const indicatorGroups = {
           price: ["Sma 5", "Sma 10", "Sma 20", "Sma 60", "Sma 120", "Sma 240"],
-          momentum: ["Bias", "Macd", "Macd Dea", "K", "D", "J"],
+          momentum: ["Bias", "DIF", "DEA", "K", "D", "J"],
         };
 
         document.querySelectorAll(".indicator-check").forEach((checkbox) => {
@@ -860,31 +925,36 @@
               ],
             });
           };
-          checkbox.onmouseenter = () => {
-            const name = checkbox.value;
-            // 找對應 series index
-            const idx = chart.w.globals.seriesNames.indexOf(name);
-            if (idx >= 0) {
-              chart.updateOptions({
-                stroke: {
-                  width: chart.w.config.series.map(
-                    (s, i) => (i === idx ? 4 : 1) // hover 的那條加粗
-                  ),
-                },
-              });
-            }
-          };
 
-          checkbox.onmouseleave = () => {
-            // 滑鼠離開 → 全部恢復成一般寬度
-            chart.updateOptions({
-              stroke: {
-                width: chart.w.config.series.map((s) =>
-                  s.type === "line" ? 2 : 1
-                ),
-              },
-            });
-          };
+          // --- 共用的 hover 處理 ---
+          const label = checkbox.parentElement;
+
+          // 共用 hover 處理：只改線條粗細，不改文字樣式
+          function handleHover(isEnter) {
+            const name = checkbox.value;
+            const idx = chart.w.globals.seriesNames.indexOf(name);
+
+            if (idx >= 0) {
+              const widths = chart.w.config.series.map((s, i) => {
+                if (s.type === "line") {
+                  // hover 時把對應那條 line 加粗，其餘 line 保持 2，非 line(蠟燭/量) = 1
+                  return isEnter && i === idx ? 3 : 2;
+                }
+                return 1;
+              });
+
+              chart.updateOptions({ stroke: { width: widths } });
+            }
+          }
+
+          // 綁定在 checkbox 與 label（文字也會觸發，但文字本身不改變）
+          checkbox.addEventListener("mouseenter", () => handleHover(true));
+          checkbox.addEventListener("mouseleave", () => handleHover(false));
+          label.addEventListener("mouseenter", () => handleHover(true));
+          label.addEventListener("mouseleave", () => handleHover(false));
+
+          // 小優化：讓整個 label 顯示可點擊游標（不會改字體）
+          label.style.cursor = "pointer";
         });
         // 顯示圖表後
         // 圖表生成後
@@ -914,10 +984,10 @@
           const sma20 = parseFloat(row["Sma 20"]);
           const prevSma5 = parseFloat(prev["Sma 5"]);
           const prevSma20 = parseFloat(prev["Sma 20"]);
-          const macd = parseFloat(row["Macd"]);
-          const macdSignal = parseFloat(row["Macd Dea"]);
-          const prevMacd = parseFloat(prev["Macd"]);
-          const prevMacdSignal = parseFloat(prev["Macd Dea"]);
+          const macd = parseFloat(row["DIF"]);
+          const macdSignal = parseFloat(row["DEA"]);
+          const prevMacd = parseFloat(prev["DIF"]);
+          const prevMacdSignal = parseFloat(prev["DEA"]);
           const k = parseFloat(row["K"]);
           const d = parseFloat(row["D"]);
           const prevK = parseFloat(prev["K"]);
@@ -927,7 +997,8 @@
           // 定義文字對應
           const labelMap = {
             "sma-cross": "SMA↑",
-            "macd-cross": "MACD↑",
+            "dif-above-dea": "MACD↑",
+            "dea-below-dif": "MACD↓",
             "kd-cross": "KD↑",
             "bias-high": "偏離↑",
             "bias-low": "偏離↓",
@@ -962,7 +1033,12 @@
           // 定義條件
           const checks = {
             "sma-cross": () => prevSma5 < prevSma20 && sma5 >= sma20,
-            "macd-cross": () => prevMacd < prevMacdSignal && macd >= macdSignal,
+            // DIF 上穿 DEA → MACD↑
+            "dif-above-dea": () =>
+              prevMacd < prevMacdSignal && macd >= macdSignal,
+            // DEA 下穿 DIF → MACD↓
+            "dea-below-dif": () =>
+              prevMacdSignal < prevMacd && macdSignal >= macd,
             "kd-cross": () => prevK < prevD && k >= d && k < 20,
             "bias-high": () => bias > 5,
             "bias-low": () => bias < -5,
@@ -1116,8 +1192,8 @@
         "Sma 60": "#f39c12", // 橘
         "Sma 120": "#9b59b6", // 紫
         "Sma 240": "#16a085", // 青
-        MACD: "#d35400", // 深橘
-        "Macd Dea": "#8e44ad", // 深紫
+        DIF: "#d35400", // 深橘
+        DEA: "#8e44ad", // 深紫
         K: "#2ecc71", // 淺綠
         D: "#2980b9", // 深藍
         J: "#c0392b", // 暗紅
