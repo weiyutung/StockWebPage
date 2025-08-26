@@ -519,7 +519,10 @@
             alert("登入成功");
           });
       }
-      window.onload = checkLoginStatus;
+      window.addEventListener("load", () => {
+        checkLoginStatus();
+        loadStockWithRange("AAPL", "3m");
+      });
 
       let chart;
       let originalMinX = null;
@@ -655,16 +658,6 @@
           )}-${String(date.getDate()).padStart(2, "0")}`;
         });
 
-        // 預先計算要在哪些 category 顯示年份
-        const showYearSet = new Set();
-        for (let i = 0; i < tradingDates.length; i++) {
-          const year = tradingDates[i].split("-")[0];
-          const prevYear = i > 0 ? tradingDates[i - 1].split("-")[0] : null;
-          if (i === 0 || year !== prevYear) {
-            showYearSet.add(tradingDates[i]); // 用 category 值當 key（"YYYY-MM-DD"）
-          }
-        }
-
         const chartData = data.map((row, idx) => ({
           x: idx,
           y: [
@@ -690,11 +683,86 @@
         document.getElementById("ohlcInfo").innerHTML =
           "將滑鼠懸停在圖表上以查看詳細資訊";
 
-        const minY = Math.min(...prices) * 0.3;
-        const maxY = Math.max(...prices) * 1.05;
+        let minY = Math.min(...prices);
+        let maxY = Math.max(...prices);
+
+        // 如果有值才調整範圍，避免 Infinity
+        if (isFinite(minY) && isFinite(maxY)) {
+          minY = minY * 0.95; // 保留 5% buffer
+          maxY = maxY * 1.05; // 多留一點空間
+        } else {
+          minY = undefined;
+          maxY = undefined;
+        }
 
         if (chart) chart.destroy();
 
+        // ✅ 定義 baseYaxis（放在 options 前面）
+        const baseYaxis = [
+          {
+            title: { text: "價格 / SMA " },
+            min: minY,
+            max: maxY,
+            labels: { formatter: (val) => Number(val.toFixed(2)) },
+            opposite: false,
+          },
+          {
+            title: { text: "Volume" },
+            labels: {
+              formatter: function (val) {
+                if (val >= 1_000_000_000) {
+                  return (val / 1_000_000_000).toFixed(0) + "B"; // 十億
+                } else if (val >= 1_000_000) {
+                  return (val / 1_000_000).toFixed(0) + "M"; // 百萬
+                } else if (val >= 1_000) {
+                  return (val / 1_000).toFixed(0) + "K"; // 千
+                }
+                return val.toFixed(0);
+              },
+            },
+            /*如果台股加進來前，用currentSymbol.endsWith(".TW");事先註記，平台可根據台股/美股變動單位
+                labels: {
+                  formatter: function (val) {
+                    const isTW = currentSymbol.endsWith(".TW"); // 判斷台股
+                    if (isTW) {
+                      if (val >= 1_000_000) return (val / 1_000_000).toFixed(2) + "M張";
+                      if (val >= 1_000) return (val / 1_000).toFixed(2) + "K張";
+                      return val.toFixed(0) + "張";
+                    } else {
+                      if (val >= 1_000_000_000) return (val / 1_000_000_000).toFixed(2) + "B";
+                      if (val >= 1_000_000) return (val / 1_000_000).toFixed(2) + "M";
+                      if (val >= 1_000) return (val / 1_000).toFixed(2) + "K";
+                      return val.toFixed(0);
+                    }
+                  },
+                }
+              */
+            opposite: true,
+            show: true,
+          },
+          {
+            title: { text: "MACD" },
+            tickAmount: 5,
+            labels: { formatter: (val) => Number(val.toFixed(2)) },
+            show: false,
+          },
+          {
+            title: { text: "KDJ" },
+            min: 0,
+            max: 100,
+            tickAmount: 5,
+            labels: { formatter: (val) => Number(val.toFixed(0)) },
+            show: false,
+          },
+          {
+            title: { text: "Bias" },
+            tickAmount: 5,
+            labels: { formatter: (val) => Number(val.toFixed(2)) + "%" },
+            show: false,
+          },
+        ];
+
+        // ✅ 初始化時用 baseYaxis
         const options = {
           chart: { type: "candlestick", height: 500, zoom: { enabled: true } },
           legend: {
@@ -715,68 +783,10 @@
             tickAmount: 20,
             labels: {
               rotate: -45,
-              formatter: (v) => {
-                if (!v) return "";
-                if (showYearSet.has(v)) {
-                  return v.split("-")[0]; // 顯示年份
-                }
-                const [, month, day] = v.split("-");
-                return `${parseInt(month, 10)}/${parseInt(day, 10)}`;
-              },
+              formatter: (v) => (v ? v.split("-").slice(1).join("/") : ""),
             },
           },
-
-          yaxis: [
-            {
-              title: { text: "價格 / SMA " },
-              min: minY,
-              max: maxY,
-              labels: { formatter: (val) => Number(val.toFixed(2)) },
-              opposite: false, // 🔑 主價格軸在左
-            },
-            {
-              title: { text: "Volume" },
-              labels: {
-                formatter: function (val) {
-                  if (val >= 1_000_000_000) {
-                    return (val / 1_000_000_000).toFixed(0) + "B"; // 十億
-                  } else if (val >= 1_000_000) {
-                    return (val / 1_000_000).toFixed(0) + "M"; // 百萬
-                  } else if (val >= 1_000) {
-                    return (val / 1_000).toFixed(0) + "K"; // 千
-                  }
-                  return val.toFixed(0);
-                },
-              },
-              /*如果台股加進來前，用currentSymbol.endsWith(".TW");事先註記，平台可根據台股/美股變動單位
-                      labels: {
-                        formatter: function (val) {
-                          const isTW = currentSymbol.endsWith(".TW"); // 判斷台股
-                          if (isTW) {
-                            if (val >= 1_000_000) return (val / 1_000_000).toFixed(2) + "M張";
-                            if (val >= 1_000) return (val / 1_000).toFixed(2) + "K張";
-                            return val.toFixed(0) + "張";
-                          } else {
-                            if (val >= 1_000_000_000) return (val / 1_000_000_000).toFixed(2) + "B";
-                            if (val >= 1_000_000) return (val / 1_000_000).toFixed(2) + "M";
-                            if (val >= 1_000) return (val / 1_000).toFixed(2) + "K";
-                            return val.toFixed(0);
-                          }
-                        },
-                      }
-                    */
-
-              opposite: true, // 🔑 成交量永遠在右
-              show: true,
-            },
-            {
-              title: { text: "MACD / KDJ " },
-              show: false,
-              tickAmount: 5,
-              labels: { formatter: (val) => Number(val.toFixed(2)) },
-              opposite: false, // 🔑 動量軸也在左
-            },
-          ],
+          yaxis: baseYaxis,
 
           series: [
             { name: "K線圖", type: "candlestick", data: chartData },
@@ -819,33 +829,33 @@
                     techLinesHtml += `<div style="color:${
                       indicatorColors[name]
                     };">
-                                ${name}: ${val.toFixed(2)}
-                              </div>`;
+                          ${name}: ${val.toFixed(2)}
+                        </div>`;
                   }
                 }
               });
 
               document.getElementById("ohlcInfo").innerHTML =
                 `日期: ${date}　` +
-                `<span style="color:black;">開 : </span><span style="color:${closeColor};">${ohlc[0].toFixed(
+                `<span style="color:black;">開:</span><span style="color:${closeColor};">${ohlc[0].toFixed(
                   2
                 )}</span> ` +
-                `<span style="color:black;">高 : </span><span style="color:${closeColor};">${ohlc[1].toFixed(
+                `<span style="color:black;">高:</span><span style="color:${closeColor};">${ohlc[1].toFixed(
                   2
                 )}</span> ` +
-                `<span style="color:black;">低 : </span><span style="color:${closeColor};">${ohlc[2].toFixed(
+                `<span style="color:black;">低:</span><span style="color:${closeColor};">${ohlc[2].toFixed(
                   2
                 )}</span> ` +
-                `<span style="color:black;">收 : </span><span style="color:${closeColor};">${ohlc[3].toFixed(
+                `<span style="color:black;">收:</span><span style="color:${closeColor};">${ohlc[3].toFixed(
                   2
                 )}</span>`;
 
               return `
-                          <div style="background:rgba(255,255,255,0.85); padding:8px; border-radius:6px; font-size:13px;">
-                            <div style="font-weight:bold; margin-bottom:4px;">${date}</div>
-                            <div style="color:#555;">成交量: ${volumeFormatted}</div>
-                            ${techLinesHtml}
-                          </div>`;
+                    <div style="background:rgba(255,255,255,0.85); padding:8px; border-radius:6px; font-size:13px;">
+                      <div style="font-weight:bold; margin-bottom:4px;">${date}</div>
+                      <div style="color:#555;">成交量: ${volumeFormatted}</div>
+                      ${techLinesHtml}
+                    </div>`;
             },
           },
         };
@@ -868,9 +878,19 @@
           Bias: "Bias",
         };
 
-        const indicatorGroups = {
-          price: ["Sma 5", "Sma 10", "Sma 20", "Sma 60", "Sma 120", "Sma 240"],
-          momentum: ["Bias", "DIF", "DEA", "K", "D", "J"],
+        const indicatorAxisMap = {
+          "Sma 5": 0,
+          "Sma 10": 0,
+          "Sma 20": 0,
+          "Sma 60": 0,
+          "Sma 120": 0,
+          "Sma 240": 0,
+          DIF: 2, // MACD 軸
+          DEA: 2, // MACD 軸
+          K: 3, // KDJ 軸
+          D: 3,
+          J: 3,
+          Bias: 4, // Bias 軸
         };
 
         document.querySelectorAll(".indicator-check").forEach((checkbox) => {
@@ -896,11 +916,14 @@
               chart.updateOptions({
                 series: newSeries,
                 yaxis: [
-                  { ...chart.w.config.yaxis[0], show: true },
-                  { ...chart.w.config.yaxis[1], show: true },
-                  { ...chart.w.config.yaxis[2], show: false },
+                  { ...baseYaxis[0], show: true }, // 價格 / SMA 永遠顯示
+                  { ...baseYaxis[1], show: true }, // 成交量 永遠顯示
+                  { ...baseYaxis[2], show: false }, // MACD 軸
+                  { ...baseYaxis[3], show: false }, // KDJ 軸
+                  { ...baseYaxis[4], show: false }, // Bias 軸
                 ],
               });
+
               return;
             }
 
@@ -914,11 +937,8 @@
                 y: row[field] != null ? parseFloat(row[field]) : null,
               }));
 
-              let yAxisIndex = 0;
-              if (indicatorGroups.momentum.includes(name)) {
-                yAxisIndex = 2;
-                momentumSelected = true;
-              }
+              // ✅ 用 mapping 直接決定要放哪個 y 軸
+              let yAxisIndex = indicatorAxisMap[name] ?? 0;
 
               newSeries.push({
                 name,
@@ -932,9 +952,20 @@
             chart.updateOptions({
               series: newSeries,
               yaxis: [
-                { ...chart.w.config.yaxis[0], show: true },
-                { ...chart.w.config.yaxis[1], show: true }, // 🔑 成交量永遠顯示
-                { ...chart.w.config.yaxis[2], show: momentumSelected },
+                { ...baseYaxis[0], show: true },
+                { ...baseYaxis[1], show: true },
+                {
+                  ...baseYaxis[2],
+                  show: checked.includes("DIF") || checked.includes("DEA"),
+                },
+                {
+                  ...baseYaxis[3],
+                  show:
+                    checked.includes("K") ||
+                    checked.includes("D") ||
+                    checked.includes("J"),
+                },
+                { ...baseYaxis[4], show: checked.includes("Bias") },
               ],
             });
           };
@@ -1193,10 +1224,11 @@
         }
       });
 
+      /*
       document.addEventListener("DOMContentLoaded", () => {
         loadStockWithRange("AAPL", "3m"); // Load Apple stock for 1 year by default
       });
-
+*/
       // 統一顏色表
       const indicatorColors = {
         "Sma 5": "#e74c3c", // 紅
