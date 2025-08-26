@@ -847,6 +847,7 @@
                 type: "line",
                 data: dataSeries,
                 yAxisIndex,
+                color: indicatorColors[name] || "#000", // 預設黑色
               });
             });
 
@@ -1105,6 +1106,31 @@
 
       document.addEventListener("DOMContentLoaded", () => {
         loadStockWithRange("AAPL", "3m"); // Load Apple stock for 1 year by default
+      });
+
+      // 統一顏色表
+      const indicatorColors = {
+        "Sma 5": "#e74c3c", // 紅
+        "Sma 10": "#3498db", // 藍
+        "Sma 20": "#27ae60", // 綠
+        "Sma 60": "#f39c12", // 橘
+        "Sma 120": "#9b59b6", // 紫
+        "Sma 240": "#16a085", // 青
+        MACD: "#d35400", // 深橘
+        "Macd Dea": "#8e44ad", // 深紫
+        K: "#2ecc71", // 淺綠
+        D: "#2980b9", // 深藍
+        J: "#c0392b", // 暗紅
+        Bias: "#7f8c8d", // 灰
+      };
+
+      // 初始化時，讓 checkbox label 文字顏色一致
+      document.querySelectorAll(".indicator-check").forEach((cb) => {
+        const color = indicatorColors[cb.value];
+        if (color) {
+          cb.parentElement.style.color = color;
+          cb.dataset.color = color; // 儲存顏色以便後續使用
+        }
       });
     </script>
   </body>
