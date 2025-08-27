@@ -41,8 +41,8 @@ for symbol in US_STOCK_NAME:
     hist["Sma_240"] = ta.sma(hist["Close"], length=240)
 
     macd_df = ta.macd(hist["Close"])
-    hist["Macd"] = macd_df["MACD_12_26_9"] if macd_df is not None else None
-    hist["Macd_Dea"] = macd_df["MACDs_12_26_9"]  # DEA 慢線 (Signal)
+    hist["DIF"] = macd_df["MACD_12_26_9"] if macd_df is not None else None
+    hist["DEA"] = macd_df["MACDs_12_26_9"]  # DEA 慢線 (Signal)
 
     stoch = ta.stoch(hist["High"], hist["Low"], hist["Close"])
     hist["K"] = stoch["STOCHk_14_3_3"]
@@ -84,8 +84,8 @@ for symbol in US_STOCK_NAME:
         "Sma 60": today_row["Sma_60"],
         "Sma 120": today_row["Sma_120"],
         "Sma 240": today_row["Sma_240"],
-        "Macd": today_row["Macd"],
-        "Macd": today_row["Macd_Dea"],
+        "DIF": today_row["DIF"],
+        "DEA": today_row["DEA"],
         "K": today_row["K"],
         "D": today_row["D"],
         "J": today_row["J"],

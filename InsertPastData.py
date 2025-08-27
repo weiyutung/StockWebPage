@@ -32,8 +32,8 @@ for symbol in US_STOCK_NAME:
 
     #  MACD → DIF 與 DEA
     macd_df = ta.macd(hist["Close"])
-    hist["Macd"] = macd_df["MACD_12_26_9"]      # DIF 快線
-    hist["Macd_Dea"] = macd_df["MACDs_12_26_9"]  # DEA 慢線 (Signal)
+    hist["DIF"] = macd_df["MACD_12_26_9"]      # DIF 快線
+    hist["DEA"] = macd_df["MACDs_12_26_9"]  # DEA 慢線 (Signal)
 
     stoch = ta.stoch(hist["High"], hist["Low"], hist["Close"])
     hist["K"] = stoch["STOCHk_14_3_3"]
@@ -73,8 +73,8 @@ for symbol in US_STOCK_NAME:
             "Sma 60": row["Sma_60"],
             "Sma 120": row["Sma_120"],
             "Sma 240": row["Sma_240"],
-            "Macd": row["Macd"],          # DIF
-            "Macd Dea": row["Macd_Dea"],  # DEA
+            "DIF": row["Macd"],          # DIF
+            "DEA": row["Macd_Dea"],  # DEA
             "K": row["K"],
             "D": row["D"],
             "J": row["J"],
