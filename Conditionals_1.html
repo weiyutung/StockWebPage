@@ -555,7 +555,7 @@
         const { data, error } = await client
           .from("stocks")
           .select(
-            'date, symbol, open, high, low, close, volume, "Sma 5", "Sma 10", "Sma 20", "Sma 60", "Sma 120", "Sma 240", Macd, K, D, J, Bias'
+            'date, symbol, open, high, low, close, volume, "Sma 5", "Sma 10", "Sma 20", "Sma 60", "Sma 120", "Sma 240", DIF, K, D, J, Bias'
           )
           .eq("symbol", symbol)
           .order("date", { ascending: false })
