@@ -60,6 +60,7 @@
         margin-top: 10px;
         margin-bottom: 20px;
         position: relative; /* 下拉列表的定位參考 */
+        width: 100%;
       }
       /* label 美化 */
       .search-container label {
@@ -67,32 +68,80 @@
         margin-bottom: 10px;
       }
 
-      #symbolInput {
-        width: 300px;
-        height: 40px;
-        font-size: 18px;
-        padding: 5px 10px;
-        border-radius: 8px;
-        border: 1px solid #ccc;
-        z-index: 1;
-        box-sizing: border-box; /* 確保 padding 不影響寬度 */
+      /* 搜尋框外觀 */
+      .search-box {
+        position: relative;
+        width: 320px;
       }
 
+      #symbolInput {
+        width: 100%;
+        height: 45px;
+        font-size: 16px;
+        padding: 0 40px 0 15px; /* 左邊內距給文字，右邊內距給圖示 */
+        border-radius: 25px;
+        border: 1px solid #ccc;
+        outline: none;
+        transition: 0.3s all;
+        box-sizing: border-box;
+      }
+
+      #symbolInput:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+      }
+
+      /* 簡潔放大鏡圖示 */
+      .search-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 16px;
+        height: 16px;
+        border: 2px solid #888; /* 鏡框 */
+        border-radius: 50%;
+      }
+
+      .search-icon::after {
+        content: "";
+        position: absolute;
+        width: 8px;
+        height: 2px;
+        background: #888;
+        top: 12px;
+        left: 12px;
+        transform: rotate(45deg);
+        transform-origin: left top;
+      }
+
+      /* 下拉建議框 */
       #suggestions {
         position: absolute;
-        top: 100%; /* 緊貼輸入框下方 */
-        left: 50%; /* 先移到容器中間 */
-        transform: translateX(
-          -50%
-        ); /* 再向左平移 50% 寬度，讓左右居中對齊輸入框 */
-        width: 300px; /* 和輸入框同寬 */
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 320px;
         background: #fff;
         border: 1px solid #ccc;
         border-top: none;
+        border-radius: 0 0 8px 8px;
         max-height: 200px;
         overflow-y: auto;
         z-index: 10;
         box-sizing: border-box;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      }
+
+      /* 建議列表每一項 */
+      #suggestions div {
+        padding: 10px 15px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      #suggestions div:hover {
+        background-color: #f0f0f0;
       }
 
       .checkbox-group label {
@@ -278,14 +327,18 @@
       </div>
 
       <div class="search-container">
-        <input
-          type="text"
-          id="symbolInput"
-          placeholder="輸入股票代號或名稱"
-          autocomplete="off"
-        />
+        <div class="search-box">
+          <input
+            type="text"
+            id="symbolInput"
+            placeholder="輸入股票代號或名稱"
+            autocomplete="off"
+          />
+          <span class="search-icon">🔍</span>
+        </div>
         <div id="suggestions"></div>
       </div>
+
       <div>
         <h2
           id="chartTitle"
