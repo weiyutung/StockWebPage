@@ -261,7 +261,7 @@
             YTD
           </div>
           <div class="time-range-item" onclick="setActive(this, '1y')">1年</div>
-          <div class="time-range-item" onclick="setActive(this, '5y')">5年</div>
+          <div class="time-range-item" onclick="setActive(this, '3y')">3年</div>
 
           <!-- 日曆按鈕與自訂時間容器 -->
           <div class="calendar-btn" onclick="toggleCustomDate()">
@@ -611,7 +611,7 @@
           "3m": 66,
           "6m": 132,
           "1y": 264,
-          "5y": 1320,
+          "3y": 792,
         };
         let count = rangeToCount[range] || 264;
 
@@ -649,12 +649,14 @@
         console.log("symbol:", symbol, "count:", count);
         console.log("error:", error);
         console.log("data:", data);
+        await fetchStockData(symbol, range);
       }
 
       function displayStockData(data, symbol) {
         window.stockData = data;
 
-        const tradingDates = data.map((row) => {
+        // const tradingDates = data.map(...)
+        window.tradingDates = data.map((row) => {
           const date = new Date(row.date);
           return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
             2,
@@ -1117,11 +1119,21 @@
           .querySelectorAll(".time-range-item")
           .forEach((item) => item.classList.remove("active"));
         el.classList.add("active");
-        // 按其他時間按鈕時隱藏自訂時間容器
+
         document.getElementById("customDateRange").style.display = "none";
-        // 這裡是原本的載入函數
-        loadStockWithRange(getSymbol(), range);
+
+        loadStockWithRange(getSymbol(), range).then(() => {
+          let months = 3;
+          if (range === "1m") months = 1;
+          if (range === "3m") months = 3;
+          if (range === "6m") months = 6;
+          if (range === "1y") months = 12;
+          if (range === "3y") months = 36;
+
+          addPeriodSeparators(months);
+        });
       }
+
       function toggleCustomDate() {
         const container = document.getElementById("customDateRange");
         const isHidden =
@@ -1230,6 +1242,100 @@
           cb.parentElement.style.color = color;
           cb.dataset.color = color; // 儲存顏色以便後續使用
         }
+      });
+
+      // === 劃分區間 + 加上標註 ===
+      function addPeriodSeparators(periodMonths) {
+        if (!window.tradingDates || window.tradingDates.length === 0) return;
+
+        const annotations = [];
+        const startDate = new Date(window.tradingDates[0]);
+        const endDate = new Date(
+          window.tradingDates[window.tradingDates.length - 1]
+        );
+
+        const totalMs = endDate - startDate;
+
+        // === 分區數量 ===
+        let sections;
+        if (periodMonths >= 12) {
+          // 1年或以上 → 切成 3~4 等分
+          sections = periodMonths === 12 ? 4 : 6;
+        } else {
+          // < 1年 → 按月份數量顯示
+          sections = periodMonths;
+        }
+
+        const interval = totalMs / sections;
+
+        for (let i = 0; i < sections; i++) {
+          const sectionStart = new Date(startDate.getTime() + interval * i);
+          const sectionEnd = new Date(startDate.getTime() + interval * (i + 1));
+
+          // 找中間點（數字顯示位置）
+          const middle = new Date(
+            (sectionStart.getTime() + sectionEnd.getTime()) / 2
+          );
+
+          // 找最接近交易日
+          let middleDate = window.tradingDates.find(
+            (d) => new Date(d).getTime() >= middle.getTime()
+          );
+          if (!middleDate) continue;
+
+          const xMid = middleDate;
+
+          // 畫中間數字
+          annotations.push({
+            x: xMid,
+            borderColor: "transparent",
+            label: {
+              borderColor: "transparent",
+              style: {
+                color: "#000",
+                background: "transparent",
+                fontSize: "14px",
+                fontWeight: "bold",
+              },
+              text: (i + 1).toString(),
+              position: "top",
+              offsetY: -15,
+            },
+          });
+
+          // 畫區間分隔線（最後一條不用）
+          if (i < sections) {
+            let lineDate = window.tradingDates.find(
+              (d) => new Date(d).getTime() >= sectionEnd.getTime()
+            );
+            if (lineDate) {
+              annotations.push({
+                x: lineDate, // 用字串
+                borderColor: "#999",
+                strokeDashArray: 4,
+              });
+            }
+          }
+        }
+
+        candlestickChart.updateOptions({
+          annotations: { xaxis: annotations },
+        });
+      }
+
+      // === 綁定按鈕事件 ===
+      document.querySelectorAll(".time-range-item").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const range = btn.getAttribute("onclick").match(/'(.*?)'/)[1];
+          let months = 3; // 預設值
+          if (range === "1m") months = 1;
+          if (range === "3m") months = 3;
+          if (range === "6m") months = 6;
+          if (range === "1y") months = 12;
+          if (range === "3y") months = 36;
+
+          addPeriodSeparators(months);
+        });
       });
     </script>
   </body>
