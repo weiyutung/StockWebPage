@@ -211,6 +211,13 @@
       .dropdown a:hover {
         background-color: #f2f2f2;
       }
+
+      .apexcharts-annotation-label.annotation-vertical {
+        display: inline-block;
+        transform-origin: center;
+        transform: rotate(-90deg);
+        line-height: 1;
+      }
     </style>
   </head>
   <body>
@@ -705,7 +712,23 @@
         if (chart) chart.destroy();
 
         const options = {
-          chart: { type: "candlestick", height: 500, zoom: { enabled: true } },
+          chart: {
+            type: "candlestick",
+            height: 500,
+            zoom: { enabled: true },
+            events: {
+              zoomed: function (chartContext, { xaxis }) {
+                if (window.currentMonths) {
+                  addPeriodSeparators(window.currentMonths);
+                }
+              },
+              scrolled: function (chartContext, { xaxis }) {
+                if (window.currentMonths) {
+                  addPeriodSeparators(window.currentMonths);
+                }
+              },
+            },
+          },
           legend: {
             show: false,
           },
@@ -993,7 +1016,27 @@
         let annotations = [];
 
         if (rules.length === 0) {
-          chart.updateOptions({ annotations: { points: [] } });
+          // ⚠️ 這裡也要保留 xaxis，不能清空
+          const existing = chart.w.config.annotations || {};
+          const existingXaxis = Array.isArray(existing.xaxis)
+            ? existing.xaxis
+            : [];
+          const existingPoints = Array.isArray(existing.points)
+            ? existing.points
+            : [];
+
+          // 保留 period-label
+          const preservedPeriod = existingPoints.filter((p) => {
+            const css = p.label?.cssClass || "";
+            return css.includes("period-label");
+          });
+
+          chart.updateOptions({
+            annotations: {
+              xaxis: existingXaxis,
+              points: preservedPeriod, // 沒有新規則 → 只保留 period
+            },
+          });
           return;
         }
 
@@ -1024,7 +1067,7 @@
             "kd-cross": "KD↑",
             "bias-high": "偏離↑",
             "bias-low": "偏離↓",
-            "three-red": "三紅",
+            "three-red": "連",
             "three-down-volume": "量↓",
           };
 
@@ -1090,8 +1133,38 @@
           }
         });
 
+        // 讀取現有 annotations
+        const existing = chart.w.config.annotations || {};
+        const existingXaxis = Array.isArray(existing.xaxis)
+          ? existing.xaxis
+          : [];
+        const existingPoints = Array.isArray(existing.points)
+          ? existing.points
+          : [];
+
+        // 只保留 period label
+        const preservedPeriod = existingPoints.filter((p) => {
+          const css = p.label?.cssClass || "";
+          return css.includes("period-label");
+        });
+
+        // highlight
+        const highlightPoints = annotations.map((a) => ({
+          ...a,
+          label: {
+            ...(a.label || {}),
+            cssClass:
+              (a.label && a.label.cssClass ? a.label.cssClass + " " : "") +
+              "highlight-marker",
+          },
+        }));
+
+        // 合併 → 保留分隔線 + period-label + 新的三角形
         chart.updateOptions({
-          annotations: { points: annotations },
+          annotations: {
+            xaxis: existingXaxis, // 保留區間分隔線
+            points: annotations, // 替換新的條件標註
+          },
         });
       }
 
@@ -1129,6 +1202,9 @@
           if (range === "6m") months = 6;
           if (range === "1y") months = 12;
           if (range === "3y") months = 36;
+
+          // 記錄當前的區間（讓 zoom/scroll 時能重畫）
+          window.currentMonths = months;
 
           addPeriodSeparators(months);
         });
@@ -1247,79 +1323,126 @@
       // === 劃分區間 + 加上標註 ===
       function addPeriodSeparators(periodMonths) {
         if (!window.tradingDates || window.tradingDates.length === 0) return;
+        if (!chart || !chart.w) return;
 
-        const annotations = [];
+        // 1個月 → 不畫區隔
+        if (periodMonths === 1) {
+          chart.updateOptions({
+            annotations: {
+              xaxis: [],
+              points: chart.w.config.annotations.points || [],
+            },
+          });
+          return;
+        }
+
         const startDate = new Date(window.tradingDates[0]);
         const endDate = new Date(
           window.tradingDates[window.tradingDates.length - 1]
         );
-
         const totalMs = endDate - startDate;
+        if (totalMs <= 0) return;
 
-        // === 分區數量 ===
         let sections;
+        let labels = [];
+
         if (periodMonths >= 12) {
-          // 1年或以上 → 切成 3~4 等分
-          sections = periodMonths === 12 ? 4 : 6;
+          // 年度 → 用季度
+          sections = 4;
+          labels = ["Q1", "Q2", "Q3", "Q4"];
         } else {
-          // < 1年 → 按月份數量顯示
+          // 其他 → 按月份數量切
           sections = periodMonths;
+          labels = Array.from({ length: sections }, (_, i) =>
+            (i + 1).toString()
+          );
         }
 
         const interval = totalMs / sections;
+        const xaxisAnnotations = [];
+        const pointAnnotations = [];
+
+        const yTop =
+          (chart.w &&
+            chart.w.config &&
+            chart.w.config.yaxis &&
+            chart.w.config.yaxis[0] &&
+            chart.w.config.yaxis[0].max) ||
+          null;
 
         for (let i = 0; i < sections; i++) {
           const sectionStart = new Date(startDate.getTime() + interval * i);
           const sectionEnd = new Date(startDate.getTime() + interval * (i + 1));
-
-          // 找中間點（數字顯示位置）
           const middle = new Date(
             (sectionStart.getTime() + sectionEnd.getTime()) / 2
           );
 
-          // 找最接近交易日
-          let middleDate = window.tradingDates.find(
+          let middleIndex = window.tradingDates.findIndex(
             (d) => new Date(d).getTime() >= middle.getTime()
           );
-          if (!middleDate) continue;
+          if (middleIndex === -1) middleIndex = window.tradingDates.length - 1;
 
-          const xMid = middleDate;
-
-          // 畫中間數字
-          annotations.push({
-            x: xMid,
-            borderColor: "transparent",
+          // Q1/Q2... or 數字
+          pointAnnotations.push({
+            x: middleIndex,
+            y: yTop ? yTop * 0.98 : undefined,
+            marker: { size: 0 },
             label: {
               borderColor: "transparent",
               style: {
-                color: "#000",
                 background: "transparent",
+                color: "#000",
                 fontSize: "14px",
                 fontWeight: "bold",
+                padding: "0",
               },
-              text: (i + 1).toString(),
-              position: "top",
-              offsetY: -15,
+              text: labels[i] || (i + 1).toString(),
+              cssClass: "annotation-vertical period-label",
             },
           });
 
-          // 畫區間分隔線（最後一條不用）
-          if (i < sections) {
-            let lineDate = window.tradingDates.find(
+          // 分隔線（最後一條不要）
+          if (i < sections - 1) {
+            let lineIndex = window.tradingDates.findIndex(
               (d) => new Date(d).getTime() >= sectionEnd.getTime()
             );
-            if (lineDate) {
-              annotations.push({
-                x: lineDate, // 用字串
+            if (lineIndex !== -1 && lineIndex < window.tradingDates.length) {
+              xaxisAnnotations.push({
+                x: lineIndex,
                 borderColor: "#999",
                 strokeDashArray: 4,
+                cssClass: "period-separator",
               });
             }
           }
         }
 
-        candlestickChart.updateOptions({
-          annotations: { xaxis: annotations },
+        const existing = chart.w.config.annotations || {};
+        const existingXaxis = Array.isArray(existing.xaxis)
+          ? existing.xaxis
+          : [];
+        const existingPoints = Array.isArray(existing.points)
+          ? existing.points
+          : [];
+
+        // 保留非 period 的 points
+        const preservedPoints = existingPoints.filter((p) => {
+          if (!p || !p.label) return true;
+          const css = p.label.cssClass || "";
+          return !css.includes("period-label");
+        });
+
+        // 保留非 period 的 xaxis
+        const preservedXaxis = existingXaxis.filter((x) => {
+          const css = x.cssClass || "";
+          return !css.includes("period-separator");
+        });
+
+        chart.updateOptions({
+          annotations: {
+            xaxis: [...preservedXaxis, ...xaxisAnnotations],
+            points: [...preservedPoints, ...pointAnnotations],
+          },
         });
       }
 
