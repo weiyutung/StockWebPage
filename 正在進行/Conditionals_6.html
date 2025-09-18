@@ -1016,6 +1016,10 @@
 
         restoreCheckedRules(getCheckedRules());
         applyRules(); // 立即套用已勾選的線
+
+        if (showPeriods) {
+          addPeriodSeparators(currentMonths);
+        }
       }
 
       function highlightConditions(rules) {
@@ -1457,9 +1461,9 @@
       function togglePeriods() {
         showPeriods = document.getElementById("togglePeriods").checked;
         if (showPeriods) {
-          addPeriodSeparators(currentMonths);
+          addPeriodSeparators(currentMonths); // 勾選 → 畫出虛線
         } else {
-          chart.clearAnnotations(); // 把虛線+數字清掉
+          chart.clearAnnotations(); // 取消勾選 → 移除虛線
         }
       }
 
@@ -1476,6 +1480,7 @@
 
           currentMonths = months; // 更新狀態
 
+          // ⚡️ 每次更換時間 → 檢查是否要顯示虛線
           if (showPeriods) {
             addPeriodSeparators(months);
           } else {
