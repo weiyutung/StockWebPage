@@ -51,6 +51,50 @@
         box-sizing: border-box;
         overflow-y: auto;
       }
+
+      /* 搜尋框容器置中 */
+      .search-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center; /* 水平置中 */
+        margin-top: 10px;
+        margin-bottom: 20px;
+        position: relative; /* 下拉列表的定位參考 */
+      }
+      /* label 美化 */
+      .search-container label {
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
+
+      #symbolInput {
+        width: 300px;
+        height: 40px;
+        font-size: 18px;
+        padding: 5px 10px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        z-index: 1;
+        box-sizing: border-box; /* 確保 padding 不影響寬度 */
+      }
+
+      #suggestions {
+        position: absolute;
+        top: 100%; /* 緊貼輸入框下方 */
+        left: 50%; /* 先移到容器中間 */
+        transform: translateX(
+          -50%
+        ); /* 再向左平移 50% 寬度，讓左右居中對齊輸入框 */
+        width: 300px; /* 和輸入框同寬 */
+        background: #fff;
+        border: 1px solid #ccc;
+        border-top: none;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 10;
+        box-sizing: border-box;
+      }
+
       .checkbox-group label {
         display: block;
         margin: 10px 0;
@@ -211,18 +255,10 @@
       .dropdown a:hover {
         background-color: #f2f2f2;
       }
-
-      .apexcharts-annotation-label.annotation-vertical {
-        display: inline-block;
-        transform-origin: center;
-        transform: rotate(-90deg);
-        line-height: 1;
-      }
     </style>
   </head>
   <body>
     <div id="main-content">
-      <h1>股票分析平台</h1>
       <!-- 加一個「三槓選單」 -->
       <div class="menu-container" id="menuContainer">
         <div class="menu-icon">
@@ -241,15 +277,15 @@
         </div>
       </div>
 
-      <label for="symbolInput">搜尋股票：</label>
-      <input
-        type="text"
-        id="symbolInput"
-        placeholder="輸入股票代號或名稱"
-        autocomplete="off"
-      />
-      <div id="suggestions"></div>
-
+      <div class="search-container">
+        <input
+          type="text"
+          id="symbolInput"
+          placeholder="輸入股票代號或名稱"
+          autocomplete="off"
+        />
+        <div id="suggestions"></div>
+      </div>
       <div>
         <h2
           id="chartTitle"
@@ -290,14 +326,6 @@
               查詢
             </button>
           </div>
-          <label class="show-periods">
-            <input
-              type="checkbox"
-              id="togglePeriods"
-              onchange="togglePeriods()"
-            />
-            顯示時間區隔
-          </label>
         </div>
         <div id="chart"></div>
       </div>
@@ -664,14 +692,12 @@
         console.log("symbol:", symbol, "count:", count);
         console.log("error:", error);
         console.log("data:", data);
-        await fetchStockData(symbol, range);
       }
 
       function displayStockData(data, symbol) {
         window.stockData = data;
 
-        // const tradingDates = data.map(...)
-        window.tradingDates = data.map((row) => {
+        const tradingDates = data.map((row) => {
           const date = new Date(row.date);
           return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
             2,
@@ -720,23 +746,7 @@
         if (chart) chart.destroy();
 
         const options = {
-          chart: {
-            type: "candlestick",
-            height: 500,
-            zoom: { enabled: true },
-            events: {
-              zoomed: function (chartContext, { xaxis }) {
-                if (window.currentMonths) {
-                  addPeriodSeparators(window.currentMonths);
-                }
-              },
-              scrolled: function (chartContext, { xaxis }) {
-                if (window.currentMonths) {
-                  addPeriodSeparators(window.currentMonths);
-                }
-              },
-            },
-          },
+          chart: { type: "candlestick", height: 500, zoom: { enabled: true } },
           legend: {
             show: false,
           },
@@ -1016,10 +1026,6 @@
 
         restoreCheckedRules(getCheckedRules());
         applyRules(); // 立即套用已勾選的線
-
-        if (showPeriods) {
-          addPeriodSeparators(currentMonths);
-        }
       }
 
       function highlightConditions(rules) {
@@ -1028,27 +1034,7 @@
         let annotations = [];
 
         if (rules.length === 0) {
-          // ⚠️ 這裡也要保留 xaxis，不能清空
-          const existing = chart.w.config.annotations || {};
-          const existingXaxis = Array.isArray(existing.xaxis)
-            ? existing.xaxis
-            : [];
-          const existingPoints = Array.isArray(existing.points)
-            ? existing.points
-            : [];
-
-          // 保留 period-label
-          const preservedPeriod = existingPoints.filter((p) => {
-            const css = p.label?.cssClass || "";
-            return css.includes("period-label");
-          });
-
-          chart.updateOptions({
-            annotations: {
-              xaxis: existingXaxis,
-              points: preservedPeriod, // 沒有新規則 → 只保留 period
-            },
-          });
+          chart.updateOptions({ annotations: { points: [] } });
           return;
         }
 
@@ -1079,7 +1065,7 @@
             "kd-cross": "KD↑",
             "bias-high": "偏離↑",
             "bias-low": "偏離↓",
-            "three-red": "連",
+            "three-red": "三紅",
             "three-down-volume": "量↓",
           };
 
@@ -1145,38 +1131,8 @@
           }
         });
 
-        // 讀取現有 annotations
-        const existing = chart.w.config.annotations || {};
-        const existingXaxis = Array.isArray(existing.xaxis)
-          ? existing.xaxis
-          : [];
-        const existingPoints = Array.isArray(existing.points)
-          ? existing.points
-          : [];
-
-        // 只保留 period label
-        const preservedPeriod = existingPoints.filter((p) => {
-          const css = p.label?.cssClass || "";
-          return css.includes("period-label");
-        });
-
-        // highlight
-        const highlightPoints = annotations.map((a) => ({
-          ...a,
-          label: {
-            ...(a.label || {}),
-            cssClass:
-              (a.label && a.label.cssClass ? a.label.cssClass + " " : "") +
-              "highlight-marker",
-          },
-        }));
-
-        // 合併 → 保留分隔線 + period-label + 新的三角形
         chart.updateOptions({
-          annotations: {
-            xaxis: existingXaxis, // 保留區間分隔線
-            points: annotations, // 替換新的條件標註
-          },
+          annotations: { points: annotations },
         });
       }
 
@@ -1204,24 +1160,11 @@
           .querySelectorAll(".time-range-item")
           .forEach((item) => item.classList.remove("active"));
         el.classList.add("active");
-
+        // 按其他時間按鈕時隱藏自訂時間容器
         document.getElementById("customDateRange").style.display = "none";
-
-        loadStockWithRange(getSymbol(), range).then(() => {
-          let months = 3;
-          if (range === "1m") months = 1;
-          if (range === "3m") months = 3;
-          if (range === "6m") months = 6;
-          if (range === "1y") months = 12;
-          if (range === "3y") months = 36;
-
-          // 記錄當前的區間（讓 zoom/scroll 時能重畫）
-          window.currentMonths = months;
-
-          addPeriodSeparators(months);
-        });
+        // 這裡是原本的載入函數
+        loadStockWithRange(getSymbol(), range);
       }
-
       function toggleCustomDate() {
         const container = document.getElementById("customDateRange");
         const isHidden =
@@ -1330,163 +1273,6 @@
           cb.parentElement.style.color = color;
           cb.dataset.color = color; // 儲存顏色以便後續使用
         }
-      });
-
-      // === 劃分區間 + 加上標註 ===
-      function addPeriodSeparators(periodMonths) {
-        if (!window.tradingDates || window.tradingDates.length === 0) return;
-        if (!chart || !chart.w) return;
-
-        // 1個月 → 不畫區隔
-        if (periodMonths === 1) {
-          chart.updateOptions({
-            annotations: {
-              xaxis: [],
-              points: chart.w.config.annotations.points || [],
-            },
-          });
-          return;
-        }
-
-        const startDate = new Date(window.tradingDates[0]);
-        const endDate = new Date(
-          window.tradingDates[window.tradingDates.length - 1]
-        );
-        const totalMs = endDate - startDate;
-        if (totalMs <= 0) return;
-
-        let sections;
-        let labels = [];
-
-        if (periodMonths >= 12) {
-          // 年度 → 用季度
-          sections = 4;
-          labels = ["Q1", "Q2", "Q3", "Q4"];
-        } else {
-          // 其他 → 按月份數量切
-          sections = periodMonths;
-          labels = Array.from({ length: sections }, (_, i) =>
-            (i + 1).toString()
-          );
-        }
-
-        const interval = totalMs / sections;
-        const xaxisAnnotations = [];
-        const pointAnnotations = [];
-
-        const yTop =
-          (chart.w &&
-            chart.w.config &&
-            chart.w.config.yaxis &&
-            chart.w.config.yaxis[0] &&
-            chart.w.config.yaxis[0].max) ||
-          null;
-
-        for (let i = 0; i < sections; i++) {
-          const sectionStart = new Date(startDate.getTime() + interval * i);
-          const sectionEnd = new Date(startDate.getTime() + interval * (i + 1));
-          const middle = new Date(
-            (sectionStart.getTime() + sectionEnd.getTime()) / 2
-          );
-
-          let middleIndex = window.tradingDates.findIndex(
-            (d) => new Date(d).getTime() >= middle.getTime()
-          );
-          if (middleIndex === -1) middleIndex = window.tradingDates.length - 1;
-
-          // Q1/Q2... or 數字
-          pointAnnotations.push({
-            x: middleIndex,
-            y: yTop ? yTop * 0.98 : undefined,
-            marker: { size: 0 },
-            label: {
-              borderColor: "transparent",
-              style: {
-                background: "transparent",
-                color: "#000",
-                fontSize: "14px",
-                fontWeight: "bold",
-                padding: "0",
-              },
-              text: labels[i] || (i + 1).toString(),
-              cssClass: "annotation-vertical period-label",
-            },
-          });
-
-          // 分隔線（最後一條不要）
-          if (i < sections - 1) {
-            let lineIndex = window.tradingDates.findIndex(
-              (d) => new Date(d).getTime() >= sectionEnd.getTime()
-            );
-            if (lineIndex !== -1 && lineIndex < window.tradingDates.length) {
-              xaxisAnnotations.push({
-                x: lineIndex,
-                borderColor: "#999",
-                strokeDashArray: 4,
-                cssClass: "period-separator",
-              });
-            }
-          }
-        }
-
-        const existing = chart.w.config.annotations || {};
-        const existingXaxis = Array.isArray(existing.xaxis)
-          ? existing.xaxis
-          : [];
-        const existingPoints = Array.isArray(existing.points)
-          ? existing.points
-          : [];
-
-        // 保留非 period 的 points
-        const preservedPoints = existingPoints.filter((p) => {
-          if (!p || !p.label) return true;
-          const css = p.label.cssClass || "";
-          return !css.includes("period-label");
-        });
-
-        // 保留非 period 的 xaxis
-        const preservedXaxis = existingXaxis.filter((x) => {
-          const css = x.cssClass || "";
-          return !css.includes("period-separator");
-        });
-
-        chart.clearAnnotations();
-        pointAnnotations.forEach((p) => chart.addPointAnnotation(p));
-        xaxisAnnotations.forEach((x) => chart.addXaxisAnnotation(x));
-      }
-
-      let currentMonths = 3; // 紀錄目前選擇的月份
-      let showPeriods = false; // 是否顯示時間區隔
-
-      function togglePeriods() {
-        showPeriods = document.getElementById("togglePeriods").checked;
-        if (showPeriods) {
-          addPeriodSeparators(currentMonths); // 勾選 → 畫出虛線
-        } else {
-          chart.clearAnnotations(); // 取消勾選 → 移除虛線
-        }
-      }
-
-      // === 綁定按鈕事件 ===
-      document.querySelectorAll(".time-range-item").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const range = btn.getAttribute("onclick").match(/'(.*?)'/)[1];
-          let months = 3; // 預設值
-          if (range === "1m") months = 1;
-          if (range === "3m") months = 3;
-          if (range === "6m") months = 6;
-          if (range === "1y") months = 12;
-          if (range === "3y") months = 36;
-
-          currentMonths = months; // 更新狀態
-
-          // ⚡️ 每次更換時間 → 檢查是否要顯示虛線
-          if (showPeriods) {
-            addPeriodSeparators(months);
-          } else {
-            chart.clearAnnotations();
-          }
-        });
       });
     </script>
   </body>
