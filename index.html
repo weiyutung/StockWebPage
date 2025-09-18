@@ -82,13 +82,50 @@
         max-width: 100%;
         margin-top: 50px;
       }
-      #suggestions {
-        border: 1px solid #ccc;
-        position: absolute;
-        background: white;
+      /* 搜尋框容器置中 */
+      .search-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start; /* 水平置中 */
+        margin-top: 10px;
+        margin-bottom: 20px;
+        position: relative; /* 下拉列表的定位參考 */
+      }
+      /* label 美化 */
+      .search-container label {
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
+
+      #symbolInput {
         width: 300px;
-        display: none;
+        height: 40px;
+        font-size: 18px;
+        padding: 5px 10px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        z-index: 1;
+        box-sizing: border-box; /* 確保 padding 不影響寬度 */
+        border: 1px solid #ccc; /* 已經有邊框 */
+        outline: none; /* 去掉瀏覽器自動外框 */
+        box-shadow: none; /* 去掉陰影 */
+        margin: 0; /* 移除額外間距 */
+        border-bottom: none;
+        display: block; /* 讓它變成 block，不參與 baseline 對齊 */
+      }
+
+      #suggestions {
+        position: absolute;
+        top: 100%;
+        left: 0; /* 對齊輸入框左邊 */
+        transform: none;
+        width: 300px; /* 跟輸入框相同寬度 */
+        background: #fff;
+        border: 1px solid #ccc;
+        max-height: 200px;
+        overflow-y: auto;
         z-index: 10;
+        box-sizing: border-box;
       }
 
       /* 時間列容器 */
@@ -241,14 +278,15 @@
         </div>
       </div>
 
-      <label for="symbolInput">搜尋股票：</label>
-      <input
-        type="text"
-        id="symbolInput"
-        placeholder="輸入股票代號或名稱"
-        autocomplete="off"
-      />
-      <div id="suggestions"></div>
+      <div class="search-container">
+        <input
+          type="text"
+          id="symbolInput"
+          placeholder="輸入股票代號或名稱"
+          autocomplete="off"
+        />
+        <div id="suggestions"></div>
+      </div>
 
       <div>
         <h2
@@ -613,7 +651,7 @@
       function selectSymbol(symbol) {
         document.getElementById("symbolInput").value = symbol;
         document.getElementById("suggestions").style.display = "none";
-        loadStockWithRange(symbol, "3m"); // Default to 1 year on new selection
+        loadStockWithRange(symbol, "3m"); // 預設載入 3 個月
       }
 
       async function loadStockWithRange(symbol, range) {
