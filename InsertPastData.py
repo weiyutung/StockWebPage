@@ -1,6 +1,7 @@
 import yfinance as yf
 import pandas_ta as ta
 import pandas as pd
+import math
 from supabase import create_client
 
 #  Supabase 連線設定
@@ -8,12 +9,23 @@ SUPABASE_URL = "https://sbzzfjlmhvuchzwqllgf.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNienpmamxtaHZ1Y2h6d3FsbGdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI3NDE2OTQsImV4cCI6MjA2ODMxNzY5NH0.fvDVLvGLQdMRuCMXmja8ltpXC3TcjZxq78xbnt9Bh-U"
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-#  股票清單
+# 股票清單
 US_STOCK_NAME = [
     'AAPL', 'AMGN', 'AXP', 'BA', 'CAT', 'CRM', 'CSCO', 'CVX', 'DIS', 'GS',
     'HD', 'HON', 'IBM', 'INTC', 'JNJ', 'JPM', 'KO', 'MCD', 'MMM', 'MRK',
     'MSFT', 'NKE', 'PG', 'TRV', 'UNH', 'V', 'VZ', 'WBA', 'WMT'
 ]
+
+# 安全處理函式：NaN / inf / -inf → None，其餘數字四捨五入到小數 10 位
+
+
+def safe_value(v):
+    if isinstance(v, float):
+        if math.isnan(v) or math.isinf(v):
+            return None
+        return round(v, 10)
+    return v
+
 
 #  技術指標抓取與上傳
 for symbol in US_STOCK_NAME:
@@ -33,7 +45,7 @@ for symbol in US_STOCK_NAME:
     #  MACD → DIF 與 DEA
     macd_df = ta.macd(hist["Close"])
     hist["DIF"] = macd_df["MACD_12_26_9"]      # DIF 快線
-    hist["DEA"] = macd_df["MACDs_12_26_9"]  # DEA 慢線 (Signal)
+    hist["DEA"] = macd_df["MACDs_12_26_9"]     # DEA 慢線 (Signal)
 
     stoch = ta.stoch(hist["High"], hist["Low"], hist["Close"])
     hist["K"] = stoch["STOCHk_14_3_3"]
@@ -73,8 +85,8 @@ for symbol in US_STOCK_NAME:
             "Sma 60": row["Sma_60"],
             "Sma 120": row["Sma_120"],
             "Sma 240": row["Sma_240"],
-            "DIF": row["Macd"],          # DIF
-            "DEA": row["Macd_Dea"],  # DEA
+            "DIF": row["DIF"],
+            "DEA": row["DEA"],
             "K": row["K"],
             "D": row["D"],
             "J": row["J"],
@@ -92,14 +104,19 @@ for symbol in US_STOCK_NAME:
             "Volume Oscillator": row["Volume_Oscillator"]
         }
 
-        # NaN → None，四捨五入小數 3 位
-        data = {k: (None if pd.isna(v) else round(v, 10) if isinstance(v, float) else v)
-                for k, v in data.items()}
-        batch_data.append(data)
+        # 套用 safe_value，確保沒有 NaN / inf
+        clean_data = {}
+        for k, v in data.items():
+            val = safe_value(v)
+            # if v is not None and isinstance(v, float) and not math.isfinite(v):
+            #     print(f" {symbol} {index.date()} 欄位 {k} 出現異常數值: {v}")
+            clean_data[k] = val
+
+        batch_data.append(clean_data)
 
     #  每 500 筆分批上傳
     for i in range(0, len(batch_data), 500):
         print(f"寫入 {symbol} 第 {i} ~ {i+500} 筆")
         supabase.table("stocks").insert(batch_data[i:i+500]).execute()
 
-print(" 全部股票寫入完成 ")
+print("全部股票寫入完成")
