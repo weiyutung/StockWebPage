@@ -4,6 +4,7 @@ import pandas as pd
 import datetime
 from supabase import create_client
 import os
+import math
 
 # Supabase 連線設定
 SUPABASE_URL = "https://sbzzfjlmhvuchzwqllgf.supabase.co"
@@ -17,13 +18,30 @@ US_STOCK_NAME = [
     'MSFT', 'NKE', 'PG', 'TRV', 'UNH', 'V', 'VZ', 'WBA', 'WMT'
 ]
 
+
+# 安全處理函式：NaN / inf / -inf → None，其餘數字四捨五入到小數 10 位
+def safe_value(v):
+    if v is None or pd.isna(v):
+        return None
+    if isinstance(v, (int, pd.Int64Dtype,)):
+        return int(v)
+    if isinstance(v, float):
+        if math.isnan(v) or math.isinf(v):
+            return None
+        # 如果這個 float 其實是整數（像 163470300.0），轉 int
+        if v.is_integer():
+            return int(v)
+        return round(v, 10)
+    return v
+
+
 # 抓最近 35 天資料（技術指標需要長期資料）
 end_date = datetime.datetime.now().date()
 start_date = end_date - datetime.timedelta(days=365)
 
 # 技術指標抓取與上傳
 for symbol in US_STOCK_NAME:
-    print(f"抓取 {symbol} 資料中...")
+    print(f"Fetch  {symbol} data...")
     stock = yf.Ticker(symbol)
     hist = stock.history(start=start_date, end=end_date)
 
@@ -72,41 +90,48 @@ for symbol in US_STOCK_NAME:
     data = {
         "symbol": symbol,
         "date": today_date.isoformat(),
-        "open": float(today_row["Open"]),
-        "high": float(today_row["High"]),
-        "low": float(today_row["Low"]),
-        "close": float(today_row["Close"]),
-        "volume": int(today_row["Volume"]),
-        "Volume Percentage": today_row["Volume_Percentage"],
-        "Sma 5": today_row["Sma_5"],
-        "Sma 10": today_row["Sma_10"],
-        "Sma 20": today_row["Sma_20"],
-        "Sma 60": today_row["Sma_60"],
-        "Sma 120": today_row["Sma_120"],
-        "Sma 240": today_row["Sma_240"],
-        "DIF": today_row["DIF"],
-        "DEA": today_row["DEA"],
-        "K": today_row["K"],
-        "D": today_row["D"],
-        "J": today_row["J"],
-        "Atr": today_row["Atr"],
-        "Cci": today_row["Cci"],
-        "Mom 6": today_row["Mom_6"],
-        "Mom 10": today_row["Mom_10"],
-        "Mom 12": today_row["Mom_12"],
-        "Mom 18": today_row["Mom_18"],
-        "Roc 5": today_row["Roc_5"],
-        "Roc 10": today_row["Roc_10"],
-        "Roc 12": today_row["Roc_12"],
-        "Willr": today_row["Willr"],
-        "Bias": today_row["Bias"],
-        "Volume Oscillator": today_row["Volume_Oscillator"]
+        "open": safe_value(today_row["Open"]),
+        "high": safe_value(today_row["High"]),
+        "low": safe_value(today_row["Low"]),
+        "close": safe_value(today_row["Close"]),
+        "volume": safe_value(today_row["Volume"]),
+        "Volume Percentage": safe_value(today_row["Volume_Percentage"]),
+        "Sma 5": safe_value(today_row["Sma_5"]),
+        "Sma 10": safe_value(today_row["Sma_10"]),
+        "Sma 20": safe_value(today_row["Sma_20"]),
+        "Sma 60": safe_value(today_row["Sma_60"]),
+        "Sma 120": safe_value(today_row["Sma_120"]),
+        "Sma 240": safe_value(today_row["Sma_240"]),
+        "DIF": safe_value(today_row["DIF"]),
+        "DEA": safe_value(today_row["DEA"]),
+        "K": safe_value(today_row["K"]),
+        "D": safe_value(today_row["D"]),
+        "J": safe_value(today_row["J"]),
+        "Atr": safe_value(today_row["Atr"]),
+        "Cci": safe_value(today_row["Cci"]),
+        "Mom 6": safe_value(today_row["Mom_6"]),
+        "Mom 10": safe_value(today_row["Mom_10"]),
+        "Mom 12": safe_value(today_row["Mom_12"]),
+        "Mom 18": safe_value(today_row["Mom_18"]),
+        "Roc 5": safe_value(today_row["Roc_5"]),
+        "Roc 10": safe_value(today_row["Roc_10"]),
+        "Roc 12": safe_value(today_row["Roc_12"]),
+        "Willr": safe_value(today_row["Willr"]),
+        "Bias": safe_value(today_row["Bias"]),
+        "Volume Oscillator": safe_value(today_row["Volume_Oscillator"])
     }
 
-    # 轉換 NaN ➜ None，並限制浮點數位數
-    data = {k: (None if pd.isna(v) else round(v, 10) if isinstance(v, float) else v)
-            for k, v in data.items()}
+    # 檢查今天資料是否已存在
+    existing = supabase.table("stocks") \
+        .select("id") \
+        .eq("symbol", symbol) \
+        .eq("date", today_date.isoformat()) \
+        .execute()
 
-    supabase.table("stocks").insert(data).execute()
+    if existing.data and len(existing.data) > 0:
+        print(f" {symbol} {today_date} PASS")
+    else:
+        supabase.table("stocks").insert(data).execute()
+        print(f" {symbol} {today_date} WRITE IN")
 
-print("每日股票更新完成")
+print("fetch data done")
