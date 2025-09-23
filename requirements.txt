@@ -7,3 +7,5 @@ yfinance==0.2.66
 
 # 技術指標分析
 pandas-ta-openbb==0.4.22
+
+supabase
