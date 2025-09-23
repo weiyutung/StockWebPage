@@ -1,5 +1,4 @@
 numpy==1.24.4
-pandas
-yfinance
-pandas_ta
-supabase
+pandas==2.2.3
+yfinance==0.2.66
+pandas-ta
