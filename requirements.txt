@@ -1,4 +1,9 @@
-numpy==1.24.4
+# 數值與資料分析
+numpy>=1.26.4
 pandas==2.2.3
+
+# 股票資料抓取
 yfinance==0.2.66
-pandas-ta-openbb
+
+# 技術指標分析
+pandas-ta-openbb==0.4.22
