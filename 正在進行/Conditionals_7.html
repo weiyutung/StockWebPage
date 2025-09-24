@@ -785,6 +785,23 @@
                 downward: "#2ecc71", // 🔻 跌 → 綠色
               },
             },
+            bar: {
+              columnWidth: "70%",
+            },
+          },
+          states: {
+            hover: {
+              filter: {
+                type: "darken", // 🔑 改成變深色
+                value: 0.7, // 越小越深 (0.5 很明顯)
+              },
+            },
+            active: {
+              filter: {
+                type: "darken",
+                value: 1.5,
+              },
+            },
           },
           xaxis: {
             type: "category",
@@ -800,6 +817,9 @@
                 const [, month, day] = v.split("-");
                 return `${parseInt(month, 10)}/${parseInt(day, 10)}`;
               },
+            },
+            tooltip: {
+              enabled: false, // 🔑 關閉底部小框框
             },
           },
 
