@@ -1310,46 +1310,62 @@
           },
         };
       }
-      document
-        .getElementById("symbolInput")
-        .addEventListener("input", async (e) => {
-          const keyword = e.target.value.trim();
-          const suggestions = document.getElementById("suggestions");
-          if (!keyword) return (suggestions.style.display = "none");
+      const symbolInput = document.getElementById("symbolInput");
+      const suggestions = document.getElementById("suggestions");
 
-          const { data, error } = await client
-            .from("stocks_meta")
-            .select("symbol, name_en, name_zh, short_name_en, short_name_zh")
-            .or(
-              `symbol.ilike.%${keyword}%,` +
-                `name_en.ilike.%${keyword}%,` +
-                `name_zh.ilike.%${keyword}%,` +
-                `short_name_en.ilike.%${keyword}%,` +
-                `short_name_zh.ilike.%${keyword}%`
-            )
+      // 輸入文字時 → 模糊搜尋
+      symbolInput.addEventListener("input", async (e) => {
+        const keyword = e.target.value.trim();
+        if (!keyword) return; // 不輸入就不處理，由 focus 事件處理
 
-            .limit(10);
+        const { data, error } = await client
+          .from("stocks_meta")
+          .select("symbol, name_en, name_zh, short_name_en, short_name_zh")
+          .or(
+            `symbol.ilike.%${keyword}%,` +
+              `name_en.ilike.%${keyword}%,` +
+              `name_zh.ilike.%${keyword}%,` +
+              `short_name_en.ilike.%${keyword}%,` +
+              `short_name_zh.ilike.%${keyword}%`
+          )
+          .limit(10);
 
-          if (error || !data || data.length === 0) {
-            suggestions.innerHTML = `<div style='padding:8px;'>無符合股票</div>`;
-            suggestions.style.display = "block";
-            return;
-          }
+        renderSuggestions(data, error);
+      });
 
-          suggestions.innerHTML = data
-            .map((item) => {
-              const nameDisplay =
-                item.name_zh ||
-                item.name_en ||
-                item.short_name_zh ||
-                item.short_name_en ||
-                "";
-              return `<div style='padding:8px; cursor:pointer' onclick='selectSymbol("${item.symbol}")'>${item.symbol} - ${nameDisplay}</div>`;
-            })
+      // 聚焦時 → 抓預設 10 筆股票
+      symbolInput.addEventListener("focus", async () => {
+        // 例如直接抓前 10 筆 (可加條件如熱門股票)
+        const { data, error } = await client
+          .from("stocks_meta")
+          .select("symbol, name_en, name_zh, short_name_en, short_name_zh")
+          .limit(10);
 
-            .join("");
+        renderSuggestions(data, error);
+      });
+
+      function renderSuggestions(data, error) {
+        if (error || !data || data.length === 0) {
+          suggestions.innerHTML = `<div style='padding:8px;'>無符合股票</div>`;
           suggestions.style.display = "block";
-        });
+          return;
+        }
+
+        suggestions.innerHTML = data
+          .map((item) => {
+            const nameDisplay =
+              item.name_zh ||
+              item.name_en ||
+              item.short_name_zh ||
+              item.short_name_en ||
+              "";
+            return `<div style='padding:8px; cursor:pointer' onclick='selectSymbol("${item.symbol}")'>
+                ${item.symbol} - ${nameDisplay}
+              </div>`;
+          })
+          .join("");
+        suggestions.style.display = "block";
+      }
 
       // Hide suggestions when clicking outside
       document.addEventListener("click", function (event) {
