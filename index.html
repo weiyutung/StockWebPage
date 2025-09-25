@@ -82,11 +82,12 @@
         max-width: 100%;
         margin-top: 50px;
       }
+
       /* 搜尋框容器置中 */
       .search-container {
         display: flex;
         flex-direction: column;
-        align-items: flex-start; /* 水平置中 */
+        align-items: center; /* 水平置中 */
         margin-top: 10px;
         margin-bottom: 20px;
         position: relative; /* 下拉列表的定位參考 */
@@ -106,22 +107,20 @@
         border: 1px solid #ccc;
         z-index: 1;
         box-sizing: border-box; /* 確保 padding 不影響寬度 */
-        border: 1px solid #ccc; /* 已經有邊框 */
-        outline: none; /* 去掉瀏覽器自動外框 */
-        box-shadow: none; /* 去掉陰影 */
-        margin: 0; /* 移除額外間距 */
-        display: block; /* 讓它變成 block，不參與 baseline 對齊 */
       }
 
       #suggestions {
         display: none; /* 預設隱藏 */
         position: absolute;
-        top: 100%;
-        left: 0; /* 對齊輸入框左邊 */
-        transform: none;
-        width: 300px; /* 跟輸入框相同寬度 */
+        top: 100%; /* 緊貼輸入框下方 */
+        left: 50%; /* 先移到容器中間 */
+        transform: translateX(
+          -50%
+        ); /* 再向左平移 50% 寬度，讓左右居中對齊輸入框 */
+        width: 300px; /* 和輸入框同寬 */
         background: #fff;
         border: 1px solid #ccc;
+        border-top: none;
         max-height: 200px;
         overflow-y: auto;
         z-index: 10;
@@ -651,7 +650,7 @@
       function selectSymbol(symbol) {
         document.getElementById("symbolInput").value = symbol;
         document.getElementById("suggestions").style.display = "none";
-        loadStockWithRange(symbol, "3m"); // 預設載入 3 個月
+        loadStockWithRange(symbol, "3m"); // Default to 1 year on new selection
       }
 
       async function loadStockWithRange(symbol, range) {
@@ -786,6 +785,23 @@
                 downward: "#2ecc71", // 🔻 跌 → 綠色
               },
             },
+            bar: {
+              columnWidth: "70%",
+            },
+          },
+          states: {
+            hover: {
+              filter: {
+                type: "darken", // 🔑 改成變深色
+                value: 0.7, // 越小越深 (0.5 很明顯)
+              },
+            },
+            active: {
+              filter: {
+                type: "darken",
+                value: 1.5,
+              },
+            },
           },
           xaxis: {
             type: "category",
@@ -802,13 +818,16 @@
                 return `${parseInt(month, 10)}/${parseInt(day, 10)}`;
               },
             },
+            tooltip: {
+              enabled: false, // 🔑 關閉底部小框框
+            },
           },
 
           yaxis: [
             {
               title: { text: "價格 / SMA " },
-              min: minY,
-              max: maxY,
+              // min: minY,
+              // max: maxY,
               labels: { formatter: (val) => Number(val.toFixed(2)) },
               opposite: false, // 🔑 主價格軸在左
             },
@@ -1291,46 +1310,62 @@
           },
         };
       }
-      document
-        .getElementById("symbolInput")
-        .addEventListener("input", async (e) => {
-          const keyword = e.target.value.trim();
-          const suggestions = document.getElementById("suggestions");
-          if (!keyword) return (suggestions.style.display = "none");
+      const symbolInput = document.getElementById("symbolInput");
+      const suggestions = document.getElementById("suggestions");
 
-          const { data, error } = await client
-            .from("stocks_meta")
-            .select("symbol, name_en, name_zh, short_name_en, short_name_zh")
-            .or(
-              `symbol.ilike.%${keyword}%,` +
-                `name_en.ilike.%${keyword}%,` +
-                `name_zh.ilike.%${keyword}%,` +
-                `short_name_en.ilike.%${keyword}%,` +
-                `short_name_zh.ilike.%${keyword}%`
-            )
+      // 輸入文字時 → 模糊搜尋
+      symbolInput.addEventListener("input", async (e) => {
+        const keyword = e.target.value.trim();
+        if (!keyword) return; // 不輸入就不處理，由 focus 事件處理
 
-            .limit(10);
+        const { data, error } = await client
+          .from("stocks_meta")
+          .select("symbol, name_en, name_zh, short_name_en, short_name_zh")
+          .or(
+            `symbol.ilike.%${keyword}%,` +
+              `name_en.ilike.%${keyword}%,` +
+              `name_zh.ilike.%${keyword}%,` +
+              `short_name_en.ilike.%${keyword}%,` +
+              `short_name_zh.ilike.%${keyword}%`
+          )
+          .limit(10);
 
-          if (error || !data || data.length === 0) {
-            suggestions.innerHTML = `<div style='padding:8px;'>無符合股票</div>`;
-            suggestions.style.display = "block";
-            return;
-          }
+        renderSuggestions(data, error);
+      });
 
-          suggestions.innerHTML = data
-            .map((item) => {
-              const nameDisplay =
-                item.name_zh ||
-                item.name_en ||
-                item.short_name_zh ||
-                item.short_name_en ||
-                "";
-              return `<div style='padding:8px; cursor:pointer' onclick='selectSymbol("${item.symbol}")'>${item.symbol} - ${nameDisplay}</div>`;
-            })
+      // 聚焦時 → 抓預設 10 筆股票
+      symbolInput.addEventListener("focus", async () => {
+        // 例如直接抓前 10 筆 (可加條件如熱門股票)
+        const { data, error } = await client
+          .from("stocks_meta")
+          .select("symbol, name_en, name_zh, short_name_en, short_name_zh")
+          .limit(10);
 
-            .join("");
+        renderSuggestions(data, error);
+      });
+
+      function renderSuggestions(data, error) {
+        if (error || !data || data.length === 0) {
+          suggestions.innerHTML = `<div style='padding:8px;'>無符合股票</div>`;
           suggestions.style.display = "block";
-        });
+          return;
+        }
+
+        suggestions.innerHTML = data
+          .map((item) => {
+            const nameDisplay =
+              item.name_zh ||
+              item.name_en ||
+              item.short_name_zh ||
+              item.short_name_en ||
+              "";
+            return `<div style='padding:8px; cursor:pointer' onclick='selectSymbol("${item.symbol}")'>
+                ${item.symbol} - ${nameDisplay}
+              </div>`;
+          })
+          .join("");
+        suggestions.style.display = "block";
+      }
 
       // Hide suggestions when clicking outside
       document.addEventListener("click", function (event) {
