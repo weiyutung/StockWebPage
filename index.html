@@ -6,6 +6,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script>
+      // 成交量壓縮比例（全域可調整） 0.3~0.6建議範圍
+      let VOL_PAD_TOP_RATIO = 0.4;
+
       if (
         location.hash.includes("access_token") &&
         !location.pathname.endsWith("ResetPassword.html")
@@ -741,18 +744,39 @@
           y: parseFloat(row.volume),
         }));
 
+        // ---- 成交量 y 軸的動態上下界（可調壓縮比例）----
+        const volMax = Math.max(...volumeData.map((p) => p.y));
+        const volMin = Math.min(...volumeData.map((p) => p.y));
+
+        // 想「壓縮」柱子（看起來更矮）→ 把這個比例調大，0.30 ~ 0.60都可
+        const volPadTopRatio = 1.8; // 40% 空間，柱子會明顯矮一些
+        const volYMax = volMax + volMax * volPadTopRatio;
+
+        // 通常把下界鎖 0 就好；若想整體往上飄，可改成負值（如 -volMax*0.1）
+        const volYMin = 0;
+
         const prices = data.flatMap((r) => [
           parseFloat(r.high),
           parseFloat(r.low),
         ]);
+
+        const dataMin = Math.min(...prices);
+        const dataMax = Math.max(...prices);
+        const range = dataMax - dataMin;
+        // 想讓 K 棒更靠上 → 調大 padBottom；不要太壓縮 → padTop 小一點
+        const padBottom = range * 0.55; // 下方多留 35% 空間（可調）
+        const padTop = range * 0.05; // 上方留 5% 空間（可調）
+
+        const yMin = Math.max(0, dataMin - padBottom);
+        const yMax = dataMax + padTop;
 
         // 標題
         document.getElementById("chartTitle").innerText = `${symbol}`;
         document.getElementById("ohlcInfo").innerHTML =
           "將滑鼠懸停在圖表上以查看詳細資訊";
 
-        const minY = Math.min(...prices) * 0.3;
-        const maxY = Math.max(...prices) * 1.05;
+        //const minY = Math.min(...prices) * 0.3;
+        // const maxY = Math.max(...prices) * 1.05;
 
         if (chart) chart.destroy();
 
@@ -826,13 +850,15 @@
           yaxis: [
             {
               title: { text: "價格 / SMA " },
-              // min: minY,
-              // max: maxY,
+              min: yMin,
+              max: yMax,
               labels: { formatter: (val) => Number(val.toFixed(2)) },
-              opposite: false, // 🔑 主價格軸在左
+              opposite: false, //  主價格軸在左
             },
             {
               title: { text: "Volume" },
+              min: volYMin,
+              max: volYMax,
               labels: {
                 formatter: function (val) {
                   if (val >= 1_000_000_000) {
@@ -1076,6 +1102,29 @@
 
         if (showPeriods) {
           addPeriodSeparators(currentMonths);
+        }
+      }
+
+      function updateVolRatio(value) {
+        VOL_PAD_TOP_RATIO = parseFloat(value);
+        document.getElementById("volRatioValue").textContent = value;
+        if (chart) {
+          // 重新繪圖：重新載入或更新成交量的 y 軸
+          const volMax = Math.max(
+            ...chart.w.globals.initialSeries[1].data.map((d) => d.y)
+          );
+          const volYMax = volMax + volMax * VOL_PAD_TOP_RATIO;
+          chart.updateOptions({
+            yaxis: [
+              chart.w.config.yaxis[0],
+              {
+                ...chart.w.config.yaxis[1],
+                max: volYMax,
+                min: 0,
+              },
+              chart.w.config.yaxis[2],
+            ],
+          });
         }
       }
 
