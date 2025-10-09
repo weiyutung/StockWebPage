@@ -704,7 +704,9 @@
         console.log("symbol:", symbol, "count:", count);
         console.log("error:", error);
         console.log("data:", data);
-        await fetchStockData(symbol, range);
+        if (typeof fetchStockData === "function") {
+          await fetchStockData(symbol, range);
+        }
       }
 
       function displayStockData(data, symbol) {
@@ -764,10 +766,10 @@
         const dataMax = Math.max(...prices);
         const range = dataMax - dataMin;
         // 想讓 K 棒更靠上 → 調大 padBottom；不要太壓縮 → padTop 小一點
-        const padBottom = range * 0.55; // 下方多留 35% 空間（可調）
+        const padBottom = range * 0.5; // 下方多留 35% 空間（可調）
         const padTop = range * 0.05; // 上方留 5% 空間（可調）
 
-        const yMin = Math.max(0, dataMin - padBottom);
+        const yMin = dataMin - padBottom;
         const yMax = dataMax + padTop;
 
         // 標題
@@ -775,8 +777,8 @@
         document.getElementById("ohlcInfo").innerHTML =
           "將滑鼠懸停在圖表上以查看詳細資訊";
 
-        //const minY = Math.min(...prices) * 0.3;
-        // const maxY = Math.max(...prices) * 1.05;
+        const minY = Math.min(...prices) * 0.95;
+        const maxY = Math.max(...prices) * 1.05;
 
         if (chart) chart.destroy();
 
@@ -1051,7 +1053,7 @@
                 color: indicatorColors[name] || "#000", // 預設黑色
               });
             });
-
+            console.log(name, "→ yAxisIndex:", yAxisIndex);
             chart.updateOptions({
               series: newSeries,
               yaxis: [
