@@ -739,10 +739,19 @@
           ],
         }));
 
-        const volumeData = data.map((row, idx) => ({
+      const volumeData = data.map((row, idx) => {
+        const up = parseFloat(row.close) >= parseFloat(row.open); // 收 >= 開 → 漲
+        return {
           x: idx,
           y: parseFloat(row.volume),
-        }));
+          fillColor: up ? "#e74c3c" : "#2ecc71", // 🔴漲紅 / 🟢跌綠
+          strokeColor: "transparent",             // ✅ 邊框透明
+        };
+      });
+
+
+
+
 
         // ---- 成交量 y 軸的動態上下界（可調壓縮比例）----
         const volMax = Math.max(...volumeData.map((p) => p.y));
@@ -812,7 +821,13 @@
             bar: {
               columnWidth: "70%",
             },
+
           },
+            stroke: {
+              show: true,
+              width: [1, 0],                  // 0 給 bar（成交量），1 給 K 線
+              colors: ["#000000", "transparent"],
+            },
           states: {
             hover: {
               filter: {
@@ -908,7 +923,7 @@
               type: "bar",
               data: volumeData,
               yAxisIndex: 1,
-              color: "#A7B3DB", // 紅碧BENIMIDORI (藍),
+              
             },
           ],
           tooltip: {
@@ -975,6 +990,7 @@
 
         chart = new ApexCharts(document.querySelector("#chart"), options);
         chart.render();
+        applyStrokeForSeries();
 
         const indicatorFieldMap = {
           "Sma 5": "Sma 5",
@@ -1010,7 +1026,7 @@
                 type: "bar",
                 data: volumeData,
                 yAxisIndex: 1,
-                color: "#A7B3DB", // 紅碧BENIMIDORI (藍)
+                
               },
             ];
 
@@ -1024,7 +1040,10 @@
                   { ...chart.w.config.yaxis[2], show: false },
                 ],
               });
+               applyStrokeForSeries();   // ← 加這行
               return;
+            
+
             }
 
             let momentumSelected = false;
@@ -1060,6 +1079,7 @@
                 { ...chart.w.config.yaxis[2], show: momentumSelected },
               ],
             });
+             applyStrokeForSeries();   // ← 加這行
           };
 
           // --- 共用的 hover 處理 ---
@@ -1104,6 +1124,18 @@
           addPeriodSeparators(currentMonths);
         }
       }
+
+      function applyStrokeForSeries() {
+        if (!chart || !chart.w) return;
+        const widths = chart.w.config.series.map(s =>
+          s.type === "bar" ? 0 : (s.type === "candlestick" ? 1 : 2) // bar=0, K=1, 線=2
+        );
+        const colors = chart.w.config.series.map(s =>
+          s.type === "bar" ? "transparent" : "#000000"
+        );
+        chart.updateOptions({ stroke: { show: true, width: widths, colors } }, false, false);
+      }
+
 
       function updateVolRatio(value) {
         VOL_PAD_TOP_RATIO = parseFloat(value);
