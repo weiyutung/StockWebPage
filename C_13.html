@@ -268,10 +268,6 @@
       #volumeChart {
         width: 100%;
       }
-      /* 調試用：確認 volume 區塊真的有高度且可見 */
-      #volumeChart {
-        border: 1px dashed #ccc;
-      }
     </style>
   </head>
   <body>
@@ -778,6 +774,7 @@
             type: "candlestick",
             height: 420,
             zoom: { enabled: true },
+
             events: {
               zoomed: () => {
                 if (window.currentMonths)
@@ -790,6 +787,8 @@
             },
           },
           legend: { show: false },
+          grid: { padding: { top: 0, right: 0, bottom: 0, left: 0 } },
+
           plotOptions: {
             candlestick: {
               colors: { upward: "#e74c3c", downward: "#2ecc71" },
@@ -908,13 +907,14 @@
 
         // ===== 下方「成交量」圖 =====
         const optionsVolume = {
+          grid: { padding: { top: 0, right: 0, bottom: 0, left: 0 } },
           chart: {
             id: "volumePane",
             group: "stockPane",
             type: "bar",
             height: 180,
             toolbar: { show: false },
-            offsetY: -10, // ⬅ 微幅往上拉，讓兩張更貼近
+            offsetY: -24, // 原本 -10，改 -24 讓它更貼上去
           },
 
           plotOptions: { bar: { columnWidth: "70%" } },

@@ -753,11 +753,37 @@
           y: [+row.open, +row.high, +row.low, +row.close],
         }));
 
+<<<<<<< HEAD
         // 下圖：成交量
         const volumeData = data.map((row) => +row.volume);
         // ---- 統計 y 軸範圍並保底 ----
         const volArr = volumeData.map((v) => (Number.isFinite(v) ? v : 0));
         const volMax = Math.max(0, ...volArr);
+=======
+      const volumeData = data.map((row, idx) => {
+        const up = parseFloat(row.close) >= parseFloat(row.open); // 收 >= 開 → 漲
+        return {
+          x: idx,
+          y: parseFloat(row.volume),
+          fillColor: up ? "#e74c3c" : "#2ecc71", // 🔴漲紅 / 🟢跌綠
+          strokeColor: "transparent",             // ✅ 邊框透明
+        };
+      });
+
+
+
+
+
+        // ---- 成交量 y 軸的動態上下界（可調壓縮比例）----
+        const volMax = Math.max(...volumeData.map((p) => p.y));
+        const volMin = Math.min(...volumeData.map((p) => p.y));
+
+        // 想「壓縮」柱子（看起來更矮）→ 把這個比例調大，0.30 ~ 0.60都可
+        const volPadTopRatio = 1.8; // 40% 空間，柱子會明顯矮一些
+        const volYMax = volMax + volMax * volPadTopRatio;
+
+        // 通常把下界鎖 0 就好；若想整體往上飄，可改成負值（如 -volMax*0.1）
+>>>>>>> cb401b0127116772d397a52ee2f2e16c982cfd67
         const volYMin = 0;
         const volYMax = volMax > 0 ? Math.ceil(volMax * 1.2) : 1; // 保底至少 1，才看得到柱子
 
@@ -794,8 +820,17 @@
             candlestick: {
               colors: { upward: "#e74c3c", downward: "#2ecc71" },
             },
+<<<<<<< HEAD
             bar: { columnWidth: "70%" },
+=======
+
+>>>>>>> cb401b0127116772d397a52ee2f2e16c982cfd67
           },
+            stroke: {
+              show: true,
+              width: [1, 0],                  // 0 給 bar（成交量），1 給 K 線
+              colors: ["#000000", "transparent"],
+            },
           states: {
             hover: { filter: { type: "darken", value: 0.7 } },
             active: { filter: { type: "darken", value: 1.5 } },
@@ -834,7 +869,17 @@
           ],
           series: [
             { name: "K線圖", type: "candlestick", data: chartData },
+<<<<<<< HEAD
             // ⚠️ 不在這裡放成交量！成交量在另一張圖
+=======
+            {
+              name: "成交量",
+              type: "bar",
+              data: volumeData,
+              yAxisIndex: 1,
+              
+            },
+>>>>>>> cb401b0127116772d397a52ee2f2e16c982cfd67
           ],
           tooltip: {
             shared: true,
@@ -902,6 +947,7 @@
           optionsPrice
         );
         chart.render();
+        applyStrokeForSeries();
 
         // 紅/綠互斥的兩條成交量序列
         const volUp = data.map((r) =>
@@ -984,8 +1030,36 @@
             // 只更新「上面價格圖」的 series
             let newSeries = [
               { name: "K線圖", type: "candlestick", data: chartData },
+<<<<<<< HEAD
             ];
 
+=======
+              {
+                name: "成交量",
+                type: "bar",
+                data: volumeData,
+                yAxisIndex: 1,
+                
+              },
+            ];
+
+            // 如果沒勾 → 只顯示 K線+成交量
+            if (checked.length === 0) {
+              chart.updateOptions({
+                series: newSeries,
+                yaxis: [
+                  { ...chart.w.config.yaxis[0], show: true },
+                  { ...chart.w.config.yaxis[1], show: true },
+                  { ...chart.w.config.yaxis[2], show: false },
+                ],
+              });
+               applyStrokeForSeries();   // ← 加這行
+              return;
+            
+
+            }
+
+>>>>>>> cb401b0127116772d397a52ee2f2e16c982cfd67
             let momentumSelected = false;
 
             checked.forEach((name) => {
@@ -1018,6 +1092,7 @@
                 { ...chart.w.config.yaxis[1], show: momentumSelected }, // 動量軸有勾才顯示
               ],
             });
+             applyStrokeForSeries();   // ← 加這行
           };
         });
 
@@ -1032,6 +1107,18 @@
         // 區隔線（若你有打開）
         if (showPeriods) addPeriodSeparators(currentMonths);
       }
+
+      function applyStrokeForSeries() {
+        if (!chart || !chart.w) return;
+        const widths = chart.w.config.series.map(s =>
+          s.type === "bar" ? 0 : (s.type === "candlestick" ? 1 : 2) // bar=0, K=1, 線=2
+        );
+        const colors = chart.w.config.series.map(s =>
+          s.type === "bar" ? "transparent" : "#000000"
+        );
+        chart.updateOptions({ stroke: { show: true, width: widths, colors } }, false, false);
+      }
+
 
       function updateVolRatio(value) {
         VOL_PAD_TOP_RATIO = parseFloat(value);
