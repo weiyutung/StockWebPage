@@ -739,10 +739,15 @@
           ],
         }));
 
-        const volumeData = data.map((row, idx) => ({
-          x: idx,
-          y: parseFloat(row.volume),
-        }));
+        const volumeData = data.map((row, idx) => {
+          const up = parseFloat(row.close) >= parseFloat(row.open); // 收 >= 開 → 漲
+          return {
+            x: idx,
+            y: parseFloat(row.volume),
+            fillColor: up ? "#e74c3c" : "#2ecc71", // 漲紅 / 跌綠
+            strokeColor: "transparent", //  邊框透明
+          };
+        });
 
         // ---- 成交量 y 軸的動態上下界（可調壓縮比例）----
         const volMax = Math.max(...volumeData.map((p) => p.y));
@@ -775,7 +780,7 @@
         document.getElementById("ohlcInfo").innerHTML =
           "將滑鼠懸停在圖表上以查看詳細資訊";
 
-        //const minY = Math.min(...prices) * 0.3;
+        // const minY = Math.min(...prices) * 0.3;
         // const maxY = Math.max(...prices) * 1.05;
 
         if (chart) chart.destroy();
@@ -805,18 +810,23 @@
           plotOptions: {
             candlestick: {
               colors: {
-                upward: "#e74c3c", // 🔺 漲 → 紅色
-                downward: "#2ecc71", // 🔻 跌 → 綠色
+                upward: "#e74c3c", //  漲 → 紅色
+                downward: "#2ecc71", //  跌 → 綠色
               },
             },
             bar: {
               columnWidth: "70%",
             },
           },
+          stroke: {
+            show: true,
+            width: [1, 0], // 0 給 bar（成交量），1 給 K 線
+            colors: ["#000000", "transparent"],
+          },
           states: {
             hover: {
               filter: {
-                type: "darken", // 🔑 改成變深色
+                type: "darken", //  改成變深色
                 value: 0.7, // 越小越深 (0.5 很明顯)
               },
             },
@@ -843,7 +853,7 @@
               },
             },
             tooltip: {
-              enabled: false, // 🔑 關閉底部小框框
+              enabled: false, //  關閉底部日期小框框
             },
           },
 
@@ -852,7 +862,7 @@
               title: { text: "價格 / SMA " },
               min: yMin,
               max: yMax,
-              labels: { formatter: (val) => Number(val.toFixed(2)) },
+              labels: { formatter: (val) => Number(val.toFixed(0)) },
               opposite: false, //  主價格軸在左
             },
             {
@@ -889,7 +899,7 @@
                       }
                     */
 
-              opposite: true, // 🔑 成交量永遠在右
+              opposite: true, //  成交量永遠在右
               show: true,
             },
             {
@@ -897,7 +907,7 @@
               show: false,
               tickAmount: 5,
               labels: { formatter: (val) => Number(val.toFixed(2)) },
-              opposite: false, // 🔑 動量軸也在左
+              opposite: false, //  動量軸也在左
             },
           ],
 
@@ -908,7 +918,6 @@
               type: "bar",
               data: volumeData,
               yAxisIndex: 1,
-              color: "#A7B3DB", // 紅碧BENIMIDORI (藍),
             },
           ],
           tooltip: {
@@ -931,7 +940,7 @@
               }
               const volumeFormatted = formatVolume(volume);
 
-              // ✅ 技術線數值（只顯示已勾選的）
+              //  技術線數值（只顯示已勾選的）
               let techLinesHtml = "";
               const checked = getCheckedIndicators();
               checked.forEach((name) => {
@@ -975,6 +984,7 @@
 
         chart = new ApexCharts(document.querySelector("#chart"), options);
         chart.render();
+        applyStrokeForSeries();
 
         const indicatorFieldMap = {
           "Sma 5": "Sma 5",
@@ -1002,7 +1012,7 @@
               document.querySelectorAll(".indicator-check:checked")
             ).map((cb) => cb.value);
 
-            // 🔑 永遠保留 K線 + 成交量
+            //  永遠保留 K線 + 成交量
             let newSeries = [
               { name: "K線圖", type: "candlestick", data: chartData },
               {
@@ -1010,7 +1020,6 @@
                 type: "bar",
                 data: volumeData,
                 yAxisIndex: 1,
-                color: "#A7B3DB", // 紅碧BENIMIDORI (藍)
               },
             ];
 
@@ -1024,6 +1033,7 @@
                   { ...chart.w.config.yaxis[2], show: false },
                 ],
               });
+              applyStrokeForSeries();
               return;
             }
 
@@ -1056,10 +1066,11 @@
               series: newSeries,
               yaxis: [
                 { ...chart.w.config.yaxis[0], show: true },
-                { ...chart.w.config.yaxis[1], show: true }, // 🔑 成交量永遠顯示
+                { ...chart.w.config.yaxis[1], show: true }, //  成交量永遠顯示
                 { ...chart.w.config.yaxis[2], show: momentumSelected },
               ],
             });
+            applyStrokeForSeries(); // ← 加這行
           };
 
           // --- 共用的 hover 處理 ---
@@ -1105,6 +1116,21 @@
         }
       }
 
+      function applyStrokeForSeries() {
+        if (!chart || !chart.w) return;
+        const widths = chart.w.config.series.map(
+          (s) => (s.type === "bar" ? 0 : s.type === "candlestick" ? 1 : 2) // bar=0, K=1, 線=2
+        );
+        const colors = chart.w.config.series.map((s) =>
+          s.type === "bar" ? "transparent" : "#000000"
+        );
+        chart.updateOptions(
+          { stroke: { show: true, width: widths, colors } },
+          false,
+          false
+        );
+      }
+
       function updateVolRatio(value) {
         VOL_PAD_TOP_RATIO = parseFloat(value);
         document.getElementById("volRatioValue").textContent = value;
@@ -1134,7 +1160,7 @@
         let annotations = [];
 
         if (rules.length === 0) {
-          // ⚠️ 這裡也要保留 xaxis，不能清空
+          //  這裡也要保留 xaxis，不能清空
           const existing = chart.w.config.annotations || {};
           const existingXaxis = Array.isArray(existing.xaxis)
             ? existing.xaxis
@@ -1192,13 +1218,13 @@
           // 畫倒三角形的工具
           function makePoint(x, y, text, color = "#FF4560") {
             return {
-              x: x, // ✅ 用 idx
+              x: x,
               y: row.low * 0.98,
               marker: {
                 size: 5, // 比原本大一點
                 fillColor: "#000000", // 黑色實心
                 strokeColor: "#000000",
-                shape: "triangle", // ✅ 官方支援
+                shape: "triangle", //  官方支援
               },
               label: {
                 borderColor: "transparent",
@@ -1602,7 +1628,7 @@
 
           currentMonths = months; // 更新狀態
 
-          // ⚡️ 每次更換時間 → 檢查是否要顯示虛線
+          // 每次更換時間 → 檢查是否要顯示虛線
           if (showPeriods) {
             addPeriodSeparators(months);
           } else {
