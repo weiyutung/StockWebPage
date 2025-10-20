@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script>
       // 成交量壓縮比例（全域可調整） 0.3~0.6建議範圍
-      let VOL_PAD_TOP_RATIO = 0.4;
+      let VOL_PAD_TOP_RATIO = 0.1;
 
       if (
         location.hash.includes("access_token") &&
@@ -261,7 +261,7 @@
       #chartsWrap {
         display: grid;
         grid-template-rows: 4fr 1fr; /* 4/5 : 1/5 */
-        gap: 2px;
+        gap: 0;
         min-height: 600px;
       }
       #priceChart,
@@ -749,13 +749,16 @@
           y: [+row.open, +row.high, +row.low, +row.close],
         }));
 
-        // 下圖：成交量
-        const volumeData = data.map((row) => +row.volume);
         // ---- 統計 y 軸範圍並保底 ----
-        const volArr = volumeData.map((v) => (Number.isFinite(v) ? v : 0));
-        const volMax = Math.max(0, ...volArr);
+        const volArr = data.map((r) =>
+          Number.isFinite(+r.volume) ? +r.volume : 0
+        );
+        const volMax = Math.max(1, ...volArr);
+        // 建議 VOL_PAD_TOP_RATIO 設 0.1~0.2，避免柱子太矮
+        const pad =
+          typeof VOL_PAD_TOP_RATIO === "number" ? VOL_PAD_TOP_RATIO : 0.15;
         const volYMin = 0;
-        const volYMax = volMax > 0 ? Math.ceil(volMax * 1.2) : 1; // 保底至少 1，才看得到柱子
+        const volYMax = Math.ceil(volMax * (1 + pad));
 
         // 標題
         document.getElementById("chartTitle").innerText = `${symbol}`;
@@ -773,16 +776,21 @@
             group: "stockPane", // 與下方 volume 同 group → 縮放/滾動同步
             type: "candlestick",
             height: 420,
-            zoom: { enabled: true },
+            zoom: { enabled: true, type: "x", autoScaleYaxis: false },
 
             events: {
-              zoomed: () => {
+              zoomed: (ctx, { xaxis }) => {
+                ApexCharts.exec("volumePane", "zoomX", xaxis.min, xaxis.max);
                 if (window.currentMonths)
                   addPeriodSeparators(window.currentMonths);
               },
-              scrolled: () => {
+              scrolled: (ctx, { xaxis }) => {
+                ApexCharts.exec("volumePane", "zoomX", xaxis.min, xaxis.max);
                 if (window.currentMonths)
                   addPeriodSeparators(window.currentMonths);
+              },
+              selection: (ctx, { xaxis }) => {
+                ApexCharts.exec("volumePane", "zoomX", xaxis.min, xaxis.max);
               },
             },
           },
@@ -905,46 +913,126 @@
           Number(r.close) < Number(r.open) ? Number(r.volume) : null
         );
 
+        const volData = (window.stockData || []).map((row, idx) => {
+          const open = +row.open || 0;
+          const close = +row.close || 0;
+          const up = close >= open;
+          return {
+            // 用日期字串當 x（就會顯示成你 categories 的日期，而不是數字）
+            x: window.tradingDates?.[idx] ?? String(idx),
+            y: +row.volume || 0,
+            //依漲跌指定顏色：漲=綠、跌=紅
+            fillColor: up ? "#e74c3c" : "#2ecc71",
+          };
+        });
+
         // ===== 下方「成交量」圖 =====
         const optionsVolume = {
-          grid: { padding: { top: 0, right: 0, bottom: 0, left: 0 } },
           chart: {
             id: "volumePane",
-            group: "stockPane",
+            group: "stockPane", // 和上方價格圖同一個 group
             type: "bar",
-            height: 180,
+            height: 240,
             toolbar: { show: false },
-            offsetY: -24, // 原本 -10，改 -24 讓它更貼上去
+            zoom: { enabled: true, type: "x" }, // 讓下圖也能縮放
+
+            events: {
+              // 下圖操作時，反向同步上圖
+              zoomed: (ctx, { xaxis }) => {
+                if (
+                  xaxis &&
+                  typeof xaxis.min === "number" &&
+                  typeof xaxis.max === "number"
+                ) {
+                  ApexCharts.exec("pricePane", "zoomX", xaxis.min, xaxis.max);
+                }
+              },
+              scrolled: (ctx, { xaxis }) => {
+                if (
+                  xaxis &&
+                  typeof xaxis.min === "number" &&
+                  typeof xaxis.max === "number"
+                ) {
+                  ApexCharts.exec("pricePane", "zoomX", xaxis.min, xaxis.max);
+                }
+              },
+              selection: (ctx, sel) => {
+                const min = sel?.xaxis?.min;
+                const max = sel?.xaxis?.max;
+                if (typeof min === "number" && typeof max === "number") {
+                  ApexCharts.exec("pricePane", "zoomX", min, max);
+                }
+              },
+            },
           },
 
-          plotOptions: { bar: { columnWidth: "70%" } },
+          plotOptions: {
+            bar: {
+              columnWidth: "70%",
+              // （可選）視覺更乾淨一點：圓角 & 無邊框
+              borderRadius: 2,
+              dataLabels: { position: "top" },
+            },
+          },
+          stroke: { width: 0 },
+
+          //  讓時間刻度不擋到柱子（可保留原本 categories）
+          grid: { padding: { top: 0, right: 0, bottom: 32, left: 0 } },
           xaxis: {
             type: "category",
             categories: window.tradingDates,
-            tickAmount: 20,
-            labels: { rotate: -45 },
+            tickAmount: 12,
+            labels: {
+              rotate: -45,
+              offsetY: 12,
+              rotateAlways: true,
+              hideOverlappingLabels: true,
+            },
+            axisTicks: { show: false },
             tooltip: { enabled: false },
           },
-          yaxis: {
-            title: { text: "Volume" },
-            min: volYMin,
-            max: volYMax,
+
+          yaxis: makeVolumeYAxis(),
+
+          dataLabels: { enabled: false },
+          tooltip: { shared: false },
+          series: [
+            {
+              name: "Volume",
+              type: "bar",
+              data: volData,
+            },
+          ],
+        };
+
+        function makeVolumeYAxis() {
+          const arr = (window.stockData || []).map((r) => +r.volume || 0);
+          const vmax = Math.max(1, ...arr);
+          const ratio = window.VOL_PAD_TOP_RATIO ?? 0.18;
+          return {
+            title: { text: "成交量 Volume" }, // 每次更新時都帶上，避免被覆蓋
+            min: 0,
+            max: Math.ceil(vmax * (1 + ratio)),
             labels: {
               formatter: function (val) {
                 if (val >= 1_000_000_000)
                   return (val / 1_000_000_000).toFixed(0) + "B";
                 if (val >= 1_000_000) return (val / 1_000_000).toFixed(0) + "M";
                 if (val >= 1_000) return (val / 1_000).toFixed(0) + "K";
-                return val.toFixed(0);
+                return String(Math.round(val));
               },
             },
-          },
-          series: [
-            { name: "量(漲)", type: "bar", data: volUp, color: "#e74c3c" },
-            { name: "量(跌)", type: "bar", data: volDown, color: "#2ecc71" },
-          ],
-          tooltip: { shared: false },
-        };
+          };
+        }
+
+        function recomputeVolumeAxis() {
+          if (!window.volumeChart) return;
+          window.volumeChart.updateOptions(
+            { yaxis: makeVolumeYAxis() },
+            false,
+            false
+          );
+        }
 
         volumeChart = new ApexCharts(
           document.querySelector("#volumeChart"),
@@ -1032,24 +1120,19 @@
 
       function updateVolRatio(value) {
         VOL_PAD_TOP_RATIO = parseFloat(value);
-        document.getElementById("volRatioValue").textContent = value;
-        if (chart) {
-          // 重新繪圖：重新載入或更新成交量的 y 軸
-          const volMax = Math.max(
-            ...chart.w.globals.initialSeries[1].data.map((d) => d.y)
+        const label = document.getElementById("volRatioValue");
+        if (label) label.textContent = value;
+
+        if (window.volumeChart && window.stockData) {
+          const arr = window.stockData.map((r) => +r.volume || 0);
+          const vmax = Math.max(1, ...arr);
+          const vmin = 0;
+          const vmaxAdj = Math.ceil(vmax * (1 + VOL_PAD_TOP_RATIO));
+          window.volumeChart.updateOptions(
+            { yaxis: { min: vmin, max: vmaxAdj } },
+            false,
+            false
           );
-          const volYMax = volMax + volMax * VOL_PAD_TOP_RATIO;
-          chart.updateOptions({
-            yaxis: [
-              chart.w.config.yaxis[0],
-              {
-                ...chart.w.config.yaxis[1],
-                max: volYMax,
-                min: 0,
-              },
-              chart.w.config.yaxis[2],
-            ],
-          });
         }
       }
 
