@@ -949,18 +949,17 @@
 
         function makeVolumeYAxis() {
           const arr = (window.stockData || []).map((r) => +r.volume || 0);
-          const vmax = Math.max(1, ...arr);
+          const vmax = Math.max(1, ...arr); // ← 一定要是 ...arr
           const ratio = window.VOL_PAD_TOP_RATIO ?? 0.18;
           return {
-            title: { text: "成交量 Volume" }, // 每次更新時都帶上，避免被覆蓋
+            title: { text: "成交量 Volume" },
             min: 0,
             max: Math.ceil(vmax * (1 + ratio)),
             labels: {
-              formatter: function (val) {
-                if (val >= 1_000_000_000)
-                  return (val / 1_000_000_000).toFixed(0) + "B";
-                if (val >= 1_000_000) return (val / 1_000_000).toFixed(0) + "M";
-                if (val >= 1_000) return (val / 1_000).toFixed(0) + "K";
+              formatter(val) {
+                if (val >= 1e9) return (val / 1e9).toFixed(0) + "B";
+                if (val >= 1e6) return (val / 1e6).toFixed(0) + "M";
+                if (val >= 1e3) return (val / 1e3).toFixed(0) + "K";
                 return String(Math.round(val));
               },
             },
@@ -1089,12 +1088,8 @@
         if (label) label.textContent = value;
 
         if (window.volumeChart && window.stockData) {
-          const arr = window.stockData.map((r) => +r.volume || 0);
-          const vmax = Math.max(1, ...arr);
-          const vmin = 0;
-          const vmaxAdj = Math.ceil(vmax * (1 + VOL_PAD_TOP_RATIO));
           window.volumeChart.updateOptions(
-            { yaxis: { min: vmin, max: vmaxAdj } },
+            { yaxis: makeVolumeYAxis() }, // 用完整物件，避免蓋掉 title/labels
             false,
             false
           );
