@@ -751,7 +751,7 @@
 
         // 主圖：K線
         const chartData = data.map((row, idx) => ({
-          x: idx,
+          x: window.tradingDates[idx],
           y: [+row.open, +row.high, +row.low, +row.close],
         }));
 
@@ -935,7 +935,7 @@
           const close = +row.close || 0;
           const up = close >= open;
           return {
-            x: window.tradingDates[idx], // ← 這行從 idx 改成日期字串
+            x: idx, // ← 這行從 idx 改成日期字串
             y: +row.volume || 0,
             fillColor: up ? "#e74c3c" : "#2ecc71",
           };
@@ -987,7 +987,7 @@
             {
               name: "Volume",
               type: "bar",
-              data: volData,
+              data: volSeries,
             },
           ],
         };
@@ -1042,7 +1042,7 @@
               const field = indicatorFieldMap[name];
               if (!field) return;
               const dataSeries = data.map((row, idx) => ({
-                x: idx,
+                x: window.tradingDates[idx],
                 y: row[field] != null ? parseFloat(row[field]) : null,
               }));
 
@@ -1175,6 +1175,7 @@
           "volumePane",
           "updateOptions",
           {
+            xaxis: { type: "category", categories: window.tradingDates },
             yaxis: makeVolumeYAxis(),
             tooltip: { y: { formatter: formatVolume } },
           },
@@ -1382,7 +1383,7 @@
           addPeriodSeparators(months);
           ensureVolumeAxis(); // 時間切換後，保險再補一次
 
-          pexCharts.exec(
+          ApexCharts.exec(
             "volumePane",
             "updateOptions",
             {
