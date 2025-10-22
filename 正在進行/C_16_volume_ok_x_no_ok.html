@@ -730,109 +730,13 @@
         console.log("data:", data);
       }
 
-      // --- 共用：成交量數字 K/M/B ---
       function formatVolume(val) {
-        if (val >= 1_000_000_000) return (val / 1_000_000_000).toFixed(0) + "B";
-        if (val >= 1_000_000) return (val / 1_000_000).toFixed(0) + "M";
-        if (val >= 1_000) return (val / 1_000).toFixed(0) + "K";
-        return Number(val).toFixed(0);
-      }
-
-      // --- 共用：成交量 y 軸（單一物件）---
-      function makeVolumeYAxis() {
-        const arr = (window.stockData || []).map((r) => +r.volume || 0);
-        const vmax = Math.max(1, ...arr);
-        const ratio = window.VOL_PAD_TOP_RATIO ?? 0.18;
-        return {
-          title: { text: "成交量 Volume" },
-          min: 0,
-          max: Math.ceil(vmax * (1 + ratio)),
-          labels: { formatter: formatVolume },
-        };
-      }
-
-      // --- 共用：把「成交量圖」的 y 軸拉回單一物件，防止被覆蓋成陣列 ---
-      function safeUpdateVolume(extra = {}) {
-        const vc = window.volumeChart;
-        if (!vc) return;
-        if (Array.isArray(extra.yaxis)) delete extra.yaxis; // 防呆：拒收陣列
-
-        vc.updateOptions(
-          Object.assign(
-            {
-              yaxis: makeVolumeYAxis(),
-              tooltip: { y: { formatter: formatVolume }, shared: false },
-            },
-            extra
-          ),
-          false,
-          false
-        );
-
-        // 驗證一下
-        console.log(
-          "vol fix -> isArray?",
-          Array.isArray(vc.w.config.yaxis),
-          " title=",
-          vc.w.config.yaxis?.title?.text
-        );
-      }
-
-      // --- 共用：主圖（價格）兩個 y 軸的工廠 ---
-      function makePriceYAxes(showMomentum = false) {
-        const p = (v) => Number(v).toFixed(2);
-        return [
-          {
-            title: { text: "價格 / SMA" },
-            labels: { formatter: p },
-            show: true,
-          },
-          {
-            title: { text: "MACD / KDJ / Bias" },
-            labels: { formatter: p },
-            show: !!showMomentum,
-          },
-        ];
-      }
-      // 建立 / 移除兩張圖共用的垂直虛線（不影響原本的 period 分隔線）
-      function setSyncedCrosshairByIndex(idx) {
-        const date = window.tradingDates?.[idx];
-        if (!date) return;
-        const line = {
-          x: date,
-          borderColor: "#9aa0a6",
-          strokeDashArray: 4,
-          cssClass: "synced-crosshair",
-        };
-        // 逐圖更新：保留其他標註，只替換 crosshair
-        [window.priceChart, window.volumeChart].forEach((inst) => {
-          if (!inst || !inst.w) return;
-          const xaxisAnnos = Array.isArray(inst.w.config.annotations?.xaxis)
-            ? inst.w.config.annotations.xaxis.filter(
-                (a) => !(a?.cssClass || "").includes("synced-crosshair")
-              )
-            : [];
-          inst.updateOptions(
-            { annotations: { xaxis: [...xaxisAnnos, line] } },
-            false,
-            false
-          );
-        });
-      }
-      function clearSyncedCrosshair() {
-        [window.priceChart, window.volumeChart].forEach((inst) => {
-          if (!inst || !inst.w) return;
-          const xaxisAnnos = Array.isArray(inst.w.config.annotations?.xaxis)
-            ? inst.w.config.annotations.xaxis.filter(
-                (a) => !(a?.cssClass || "").includes("synced-crosshair")
-              )
-            : [];
-          inst.updateOptions(
-            { annotations: { xaxis: xaxisAnnos } },
-            false,
-            false
-          );
-        });
+        if (val == null || isNaN(val)) return "";
+        const n = +val;
+        if (n >= 1e9) return (n / 1e9).toFixed(0) + "B";
+        if (n >= 1e6) return (n / 1e6).toFixed(0) + "M";
+        if (n >= 1e3) return (n / 1e3).toFixed(0) + "K";
+        return String(Math.round(n));
       }
 
       function displayStockData(data, symbol) {
@@ -870,44 +774,16 @@
           "將滑鼠懸停在圖表上以查看詳細資訊";
 
         // 先把舊圖清掉（兩張都處理）
-        if (
-          window.priceChart &&
-          typeof window.priceChart.destroy === "function"
-        ) {
-          window.priceChart.destroy();
-        }
-        if (
-          window.volumeChart &&
-          typeof window.volumeChart.destroy === "function"
-        ) {
-          window.volumeChart.destroy();
-        }
+        if (chart) chart.destroy();
+        if (volumeChart) volumeChart.destroy();
 
         // ===== 上方「價格＋技術線」圖 =====
         const optionsPrice = {
           chart: {
             id: "pricePane",
+            group: "stockPane", // 與下方 volume 同 group → 縮放/滾動同步
             type: "candlestick",
             height: 420,
-            events: {
-              // 同步 X 軸視窗（你已加過可保留）
-              zoomed: (_ctx, { xaxis }) => {
-                if (window.volumeChart)
-                  ApexCharts.exec("volumePane", "zoomX", xaxis.min, xaxis.max);
-              },
-              scrolled: (_ctx, { xaxis }) => {
-                if (window.volumeChart)
-                  ApexCharts.exec("volumePane", "zoomX", xaxis.min, xaxis.max);
-              },
-              // 滑鼠移動 → 畫兩張圖共用的垂直虛線
-              mouseMove: (_e, _ctx, cfg) => {
-                const i = cfg?.dataPointIndex;
-                if (typeof i === "number" && i >= 0)
-                  setSyncedCrosshairByIndex(i);
-              },
-              mouseLeave: () => clearSyncedCrosshair(),
-              updated: () => setTimeout(safeUpdateVolume, 0),
-            },
           },
           legend: { show: false },
           grid: { padding: { top: 0, right: 0, bottom: 0, left: 10 } },
@@ -932,8 +808,23 @@
             tooltip: { enabled: false },
           },
 
-          yaxis: makePriceYAxes(false),
-
+          yaxis: [
+            {
+              // 0: 價格 / SMA
+              title: { text: "價格 / SMA" },
+              labels: { formatter: (val) => Number(val.toFixed(2)) },
+              opposite: false,
+              show: true,
+            },
+            {
+              // 1: 動量（MACD/KDJ/Bias）
+              title: { text: "MACD / KDJ / Bias" },
+              labels: { formatter: (val) => Number(val.toFixed(2)) },
+              tickAmount: 5,
+              opposite: false,
+              show: false, // 勾到動量線時再開
+            },
+          ],
           series: [
             { name: "K線圖", type: "candlestick", data: chartData },
             // ⚠️ 不在這裡放成交量！成交量在另一張圖
@@ -1022,20 +913,11 @@
         const optionsVolume = {
           chart: {
             id: "volumePane",
+            group: "stockPane", // 和上方價格圖同一個 group
             type: "bar",
             height: 240,
             toolbar: { show: false },
-            events: {
-              mouseMove: (_e, _ctx, cfg) => {
-                const i = cfg?.dataPointIndex;
-                if (typeof i === "number" && i >= 0)
-                  setSyncedCrosshairByIndex(i);
-              },
-              mouseLeave: () => clearSyncedCrosshair(),
-            },
           },
-          yaxis: makeVolumeYAxis(),
-          tooltip: { y: { formatter: formatVolume }, shared: false }, // ← 讓滑鼠提示也顯示 K/M/B
 
           plotOptions: {
             bar: {
@@ -1053,18 +935,22 @@
             categories: window.tradingDates,
             tickAmount: 12,
             labels: {
-              show: true,
               rotate: -45,
               offsetY: 6,
               rotateAlways: true,
               hideOverlappingLabels: true,
-              formatter: (v) => v, // 想要 MM-DD 可用：v.slice(5)
             },
             axisTicks: { show: false },
             tooltip: { enabled: false },
           },
 
+          yaxis: makeVolumeYAxis(),
+
           dataLabels: { enabled: false },
+          tooltip: {
+            shared: false,
+            y: { formatter: formatVolume }, // ← 這行讓滑鼠提示也顯示 K/M/B
+          },
           series: [
             {
               name: "Volume",
@@ -1074,8 +960,25 @@
           ],
         };
 
+        function makeVolumeYAxis() {
+          const arr = (window.stockData || []).map((r) => +r.volume || 0);
+          const vmax = Math.max(1, ...arr);
+          const ratio = window.VOL_PAD_TOP_RATIO ?? 0.18;
+          return {
+            title: { text: "成交量 Volume" }, // 每次更新時都帶上，避免被覆蓋
+            min: 0,
+            max: Math.ceil(vmax * (1 + ratio)),
+            labels: { formatter: formatVolume },
+          };
+        }
+
         function recomputeVolumeAxis() {
-          safeUpdateVolume();
+          if (!window.volumeChart) return;
+          window.volumeChart.updateOptions(
+            { yaxis: makeVolumeYAxis() },
+            false,
+            false
+          );
         }
 
         window.priceChart = new ApexCharts(
@@ -1089,10 +992,6 @@
         window.priceChart.render();
         window.volumeChart.render();
         chart = window.priceChart; // ← 讓後面用到 chart 的地方都指向價格圖
-        // 成交量：單一物件 + K/M/B
-        safeUpdateVolume();
-        // 價格：兩軸（價格/SMA + 動量），避免被意外覆蓋
-        chart.updateOptions({ yaxis: makePriceYAxes(false) }, false, false);
 
         // ===== 還原原本的「勾選技術指標」行為（重要：不要把成交量塞回主圖）=====
         const indicatorFieldMap = {
@@ -1150,17 +1049,27 @@
               });
             });
 
-            // 只修成交量圖（單一物件 y 軸 + K/M/B）
-            safeUpdateVolume();
-
-            // 用工廠重建主圖 y 軸，避免被污染成「成交量」
             chart.updateOptions(
               {
                 series: newSeries,
-                yaxis: makePriceYAxes(
-                  checked.some((n) => indicatorGroups.momentum.includes(n))
-                ),
+                yaxis: [
+                  { ...chart.w.config.yaxis[0], show: true },
+                  {
+                    ...chart.w.config.yaxis[1],
+                    show: checked.some((n) =>
+                      indicatorGroups.momentum.includes(n)
+                    ),
+                  },
+                ],
               },
+              false,
+              false
+            );
+
+            ApexCharts.exec(
+              "volumePane",
+              "updateOptions",
+              { yaxis: makeVolumeYAxis() },
               false,
               false
             );
