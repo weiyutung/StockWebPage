@@ -2,10 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>股票資料展示</title>
+    <title>股票分析平台demo</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script>
+      // 成交量壓縮比例（全域可調整） 0.3~0.6建議範圍
+      let VOL_PAD_TOP_RATIO = 0.1;
+
       if (
         location.hash.includes("access_token") &&
         !location.pathname.endsWith("ResetPassword.html")
@@ -82,13 +85,49 @@
         max-width: 100%;
         margin-top: 50px;
       }
-      #suggestions {
-        border: 1px solid #ccc;
-        position: absolute;
-        background: white;
+
+      /* 搜尋框容器置中 */
+      .search-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center; /* 水平置中 */
+        margin-top: 10px;
+        margin-bottom: 20px;
+        position: relative; /* 下拉列表的定位參考 */
+      }
+      /* label 美化 */
+      .search-container label {
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
+
+      #symbolInput {
         width: 300px;
-        display: none;
+        height: 40px;
+        font-size: 18px;
+        padding: 5px 10px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        z-index: 1;
+        box-sizing: border-box; /* 確保 padding 不影響寬度 */
+      }
+
+      #suggestions {
+        display: none; /* 預設隱藏 */
+        position: absolute;
+        top: 100%; /* 緊貼輸入框下方 */
+        left: 50%; /* 先移到容器中間 */
+        transform: translateX(
+          -50%
+        ); /* 再向左平移 50% 寬度，讓左右居中對齊輸入框 */
+        width: 300px; /* 和輸入框同寬 */
+        background: #fff;
+        border: 1px solid #ccc;
+        border-top: none;
+        max-height: 200px;
+        overflow-y: auto;
         z-index: 10;
+        box-sizing: border-box;
       }
 
       /* 時間列容器 */
@@ -211,11 +250,37 @@
       .dropdown a:hover {
         background-color: #f2f2f2;
       }
+
+      .apexcharts-annotation-label.annotation-vertical {
+        display: inline-block;
+        transform-origin: center;
+        transform: rotate(-90deg);
+        line-height: 1;
+      }
+
+      /* 讓兩張圖直向堆疊，不要再用 fr 分配空間 */
+      #chartsWrap {
+        display: flex;
+        flex-direction: column;
+        gap: 0; /* 兩張圖間距，想更緊可改 0~4 */
+        height: 600px; /* 你要的總高度，想更高就加大 */
+      }
+
+      /* 上面：價格 + 技術線（約 4/5 高度） */
+      #priceChart {
+        flex: 4 1 0;
+        min-height: 0;
+      }
+
+      /* 下面：成交量（約 1/5 高度） */
+      #volumeChart {
+        flex: 1 1 0;
+        min-height: 0;
+      }
     </style>
   </head>
   <body>
     <div id="main-content">
-      <h1>股票資料</h1>
       <!-- 加一個「三槓選單」 -->
       <div class="menu-container" id="menuContainer">
         <div class="menu-icon">
@@ -234,14 +299,15 @@
         </div>
       </div>
 
-      <label for="symbolInput">搜尋股票：</label>
-      <input
-        type="text"
-        id="symbolInput"
-        placeholder="輸入股票代號或名稱"
-        autocomplete="off"
-      />
-      <div id="suggestions"></div>
+      <div class="search-container">
+        <input
+          type="text"
+          id="symbolInput"
+          placeholder="輸入股票代號或名稱"
+          autocomplete="off"
+        />
+        <div id="suggestions"></div>
+      </div>
 
       <div>
         <h2
@@ -250,7 +316,7 @@
         ></h2>
         <div
           id="ohlcInfo"
-          style="text-align: left; font-size: 16px; padding: 5px 0"
+          style="text-align: left; font-size: 16px; padding: 15px 0"
         ></div>
         <div class="time-range-bar">
           <div class="time-range-item" onclick="setActive(this, '5d')">5天</div>
@@ -261,7 +327,7 @@
             YTD
           </div>
           <div class="time-range-item" onclick="setActive(this, '1y')">1年</div>
-          <div class="time-range-item" onclick="setActive(this, '5y')">5年</div>
+          <div class="time-range-item" onclick="setActive(this, '3y')">3年</div>
 
           <!-- 日曆按鈕與自訂時間容器 -->
           <div class="calendar-btn" onclick="toggleCustomDate()">
@@ -283,8 +349,19 @@
               查詢
             </button>
           </div>
+          <label class="show-periods">
+            <input
+              type="checkbox"
+              id="togglePeriods"
+              onchange="togglePeriods()"
+            />
+            顯示時間區隔
+          </label>
         </div>
-        <div id="chart"></div>
+        <div id="chartsWrap">
+          <div id="priceChart"></div>
+          <div id="volumeChart"></div>
+        </div>
       </div>
     </div>
 
@@ -389,7 +466,14 @@
                 <input type="checkbox" class="rule-check" value="three-red" />
                 連續三天紅柱
               </label>
-
+              <label>
+                <input
+                  type="checkbox"
+                  class="rule-check"
+                  value="three-down-volume"
+                />
+                成交量連降三天
+              </label>
               <label
                 ><input
                   type="checkbox"
@@ -519,12 +603,10 @@
             alert("登入成功");
           });
       }
-      window.addEventListener("load", () => {
-        checkLoginStatus();
-        loadStockWithRange("AAPL", "3m");
-      });
+      window.onload = checkLoginStatus;
 
       let chart;
+      let volumeChart; // 下面成交量圖（新增）
       let originalMinX = null;
       let originalMaxX = null;
 
@@ -607,7 +689,7 @@
           "3m": 66,
           "6m": 132,
           "1y": 264,
-          "5y": 1320,
+          "3y": 792,
         };
         let count = rangeToCount[range] || 264;
 
@@ -647,222 +729,283 @@
         console.log("data:", data);
       }
 
+      // 例：把後端的 row.date 轉成 "YYYY-MM-DD"
+      window.tradingDates = (window.stockData || []).map((row) => {
+        const d = new Date(row.date);
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        return `${d.getFullYear()}-${mm}-${dd}`;
+      });
+
       function displayStockData(data, symbol) {
         window.stockData = data;
 
-        const tradingDates = data.map((row) => {
-          const date = new Date(row.date);
-          return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+        // X 軸交易日（字串，和 xaxis.categories 對齊）
+        window.tradingDates = data.map((row) => {
+          const d = new Date(row.date);
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
             2,
             "0"
-          )}-${String(date.getDate()).padStart(2, "0")}`;
+          )}-${String(d.getDate()).padStart(2, "0")}`;
         });
 
+        // 主圖：K線
         const chartData = data.map((row, idx) => ({
           x: idx,
-          y: [
-            parseFloat(row.open),
-            parseFloat(row.high),
-            parseFloat(row.low),
-            parseFloat(row.close),
-          ],
+          y: [+row.open, +row.high, +row.low, +row.close],
         }));
 
-        const volumeData = data.map((row, idx) => ({
-          x: idx,
-          y: parseFloat(row.volume),
-        }));
-
-        const prices = data.flatMap((r) => [
-          parseFloat(r.high),
-          parseFloat(r.low),
-        ]);
+        // ---- 統計 y 軸範圍並保底 ----
+        const volArr = data.map((r) =>
+          Number.isFinite(+r.volume) ? +r.volume : 0
+        );
+        const volMax = Math.max(1, ...volArr);
+        // 建議 VOL_PAD_TOP_RATIO 設 0.1~0.2，避免柱子太矮
+        const pad =
+          typeof VOL_PAD_TOP_RATIO === "number" ? VOL_PAD_TOP_RATIO : 0.15;
+        const volYMin = 0;
+        const volYMax = Math.ceil(volMax * (1 + pad));
 
         // 標題
         document.getElementById("chartTitle").innerText = `${symbol}`;
         document.getElementById("ohlcInfo").innerHTML =
           "將滑鼠懸停在圖表上以查看詳細資訊";
 
-        let minY = Math.min(...prices);
-        let maxY = Math.max(...prices);
-
-        // 如果有值才調整範圍，避免 Infinity
-        if (isFinite(minY) && isFinite(maxY)) {
-          minY = minY * 0.95; // 保留 5% buffer
-          maxY = maxY * 1.05; // 多留一點空間
-        } else {
-          minY = undefined;
-          maxY = undefined;
-        }
-
+        // 先把舊圖清掉（兩張都處理）
         if (chart) chart.destroy();
+        if (volumeChart) volumeChart.destroy();
 
-        // ✅ 定義 baseYaxis（放在 options 前面）
-        const baseYaxis = [
+        // K 線
+        const kSeries = [
           {
-            title: { text: "價格 / SMA " },
-            min: minY,
-            max: maxY,
-            labels: { formatter: (val) => Number(val.toFixed(2)) },
-            opposite: false,
-          },
-          {
-            title: { text: "Volume" },
-            labels: {
-              formatter: function (val) {
-                if (val >= 1_000_000_000) {
-                  return (val / 1_000_000_000).toFixed(0) + "B"; // 十億
-                } else if (val >= 1_000_000) {
-                  return (val / 1_000_000).toFixed(0) + "M"; // 百萬
-                } else if (val >= 1_000) {
-                  return (val / 1_000).toFixed(0) + "K"; // 千
-                }
-                return val.toFixed(0);
-              },
-            },
-            /*如果台股加進來前，用currentSymbol.endsWith(".TW");事先註記，平台可根據台股/美股變動單位
-                labels: {
-                  formatter: function (val) {
-                    const isTW = currentSymbol.endsWith(".TW"); // 判斷台股
-                    if (isTW) {
-                      if (val >= 1_000_000) return (val / 1_000_000).toFixed(2) + "M張";
-                      if (val >= 1_000) return (val / 1_000).toFixed(2) + "K張";
-                      return val.toFixed(0) + "張";
-                    } else {
-                      if (val >= 1_000_000_000) return (val / 1_000_000_000).toFixed(2) + "B";
-                      if (val >= 1_000_000) return (val / 1_000_000).toFixed(2) + "M";
-                      if (val >= 1_000) return (val / 1_000).toFixed(2) + "K";
-                      return val.toFixed(0);
-                    }
-                  },
-                }
-              */
-            opposite: true,
-            show: true,
-          },
-          {
-            title: { text: "MACD" },
-            tickAmount: 5,
-            labels: { formatter: (val) => Number(val.toFixed(2)) },
-            show: false,
-          },
-          {
-            title: { text: "KDJ" },
-            min: 0,
-            max: 100,
-            tickAmount: 5,
-            labels: { formatter: (val) => Number(val.toFixed(0)) },
-            show: false,
-          },
-          {
-            title: { text: "Bias" },
-            tickAmount: 5,
-            labels: { formatter: (val) => Number(val.toFixed(2)) + "%" },
-            show: false,
+            name: "Price",
+            type: "candlestick",
+            data: window.stockData.map((row, i) => ({
+              x: window.tradingDates[i],
+              y: [row.open, row.high, row.low, row.close],
+            })),
           },
         ];
 
-        // ✅ 初始化時用 baseYaxis
-        const options = {
-          chart: { type: "candlestick", height: 500, zoom: { enabled: true } },
-          legend: {
-            show: false,
+        // 成交量
+        const volSeries = [
+          {
+            name: "Volume",
+            type: "bar",
+            data: window.stockData.map((row, i) => ({
+              x: window.tradingDates[i],
+              y: row.volume ?? 0,
+            })),
           },
+        ];
 
-          plotOptions: {
-            candlestick: {
-              colors: {
-                upward: "#e74c3c", // 🔺 漲 → 紅色
-                downward: "#2ecc71", // 🔻 跌 → 綠色
+        // ===== 上方「價格＋技術線」圖 =====
+        const optionsPrice = {
+          chart: {
+            id: "pricePane",
+            group: "stockPane", // 與下方 volume 同 group → 縮放/滾動同步
+            type: "candlestick",
+            height: 420,
+            events: {
+              mounted: function () {
+                ensureVolumeAxis();
+              },
+              updated: function () {
+                ensureVolumeAxis();
               },
             },
           },
+          series: kSeries,
+          legend: { show: false },
+          grid: { padding: { top: 0, right: 0, bottom: 0, left: 10 } },
+
+          plotOptions: {
+            candlestick: {
+              colors: { upward: "#e74c3c", downward: "#2ecc71" },
+            },
+            bar: { columnWidth: "70%" },
+          },
+          states: {
+            hover: { filter: { type: "darken", value: 0.7 } },
+            active: { filter: { type: "darken", value: 1.5 } },
+          },
           xaxis: {
             type: "category",
-            categories: tradingDates,
+            categories: window.tradingDates,
             tickAmount: 20,
-            labels: {
-              rotate: -45,
-              formatter: (v) => (v ? v.split("-").slice(1).join("/") : ""),
-            },
+            labels: { show: false }, // ⬅ 隱藏上面圖的日期標籤
+            axisBorder: { show: false }, // ⬅ 隱藏邊框線
+            axisTicks: { show: false }, // ⬅ 隱藏刻度
+            tooltip: { enabled: false },
           },
-          yaxis: baseYaxis,
 
+          yaxis: [
+            {
+              // 0: 價格 / SMA
+              title: { text: "價格 / SMA" },
+              labels: { formatter: (val) => Number(val.toFixed(2)) },
+              opposite: false,
+              show: true,
+            },
+            {
+              // 1: 動量（MACD/KDJ/Bias）
+              title: { text: "MACD / KDJ / Bias" },
+              labels: { formatter: (val) => Number(val.toFixed(2)) },
+              tickAmount: 5,
+              opposite: false,
+              show: false, // 勾到動量線時再開
+            },
+          ],
           series: [
             { name: "K線圖", type: "candlestick", data: chartData },
-            {
-              name: "成交量",
-              type: "bar",
-              data: volumeData,
-              yAxisIndex: 1,
-              color: "rgba(100,149,237,0.4)",
-            },
+            // ⚠️ 不在這裡放成交量！成交量在另一張圖
           ],
           tooltip: {
             shared: true,
             custom: function ({ series, dataPointIndex, w }) {
               const ohlc = w.globals.initialSeries[0].data[dataPointIndex].y;
-              const date = tradingDates[dataPointIndex];
-
-              // 判斷收盤價漲跌，決定顏色
+              const date = window.tradingDates[dataPointIndex];
               const closeColor = ohlc[3] > ohlc[0] ? "#e74c3c" : "#2ecc71";
 
-              // 取得成交量
-              const volume = w.globals.initialSeries[1].data[dataPointIndex].y;
-
-              // 轉換成交量單位
-              function formatVolume(val) {
-                if (val >= 1e6) return (val / 1e6).toFixed(2) + "M";
-                if (val >= 1e3) return (val / 1e3).toFixed(2) + "K";
-                return val.toString();
+              // 成交量已不在同一圖 → 直接取原始資料
+              const volRaw = window.stockData?.[dataPointIndex]?.volume ?? null;
+              function fmtVol(val) {
+                if (val == null) return "";
+                if (val >= 1e9) return (val / 1e9).toFixed(0) + "B";
+                if (val >= 1e6) return (val / 1e6).toFixed(0) + "M";
+                if (val >= 1e3) return (val / 1e3).toFixed(0) + "K";
+                return String(val);
               }
-              const volumeFormatted = formatVolume(volume);
 
-              // ✅ 技術線數值（只顯示已勾選的）
+              // 只顯示「目前有勾選」的技術線
               let techLinesHtml = "";
-              const checked = getCheckedIndicators();
+              const checked = getCheckedIndicators?.() ?? [];
               checked.forEach((name) => {
                 const idx = w.globals.seriesNames.indexOf(name);
                 if (idx >= 0) {
                   const val = series[idx][dataPointIndex];
                   if (val != null) {
                     techLinesHtml += `<div style="color:${
-                      indicatorColors[name]
-                    };">
-                          ${name}: ${val.toFixed(2)}
-                        </div>`;
+                      indicatorColors[name] || "#000"
+                    }">${name}: ${val.toFixed(2)}</div>`;
                   }
                 }
               });
 
-              document.getElementById("ohlcInfo").innerHTML =
-                `日期: ${date}　` +
-                `<span style="color:black;">開:</span><span style="color:${closeColor};">${ohlc[0].toFixed(
-                  2
-                )}</span> ` +
-                `<span style="color:black;">高:</span><span style="color:${closeColor};">${ohlc[1].toFixed(
-                  2
-                )}</span> ` +
-                `<span style="color:black;">低:</span><span style="color:${closeColor};">${ohlc[2].toFixed(
-                  2
-                )}</span> ` +
-                `<span style="color:black;">收:</span><span style="color:${closeColor};">${ohlc[3].toFixed(
-                  2
-                )}</span>`;
+              // 同步上方資訊列
+              const info = document.getElementById("ohlcInfo");
+              if (info) {
+                info.innerHTML =
+                  `日期: ${date}　` +
+                  `<span style="color:black;">開 : </span><span style="color:${closeColor};">${ohlc[0].toFixed(
+                    2
+                  )}</span> ` +
+                  `<span style="color:black;">高 : </span><span style="color:${closeColor};">${ohlc[1].toFixed(
+                    2
+                  )}</span> ` +
+                  `<span style="color:black;">低 : </span><span style="color:${closeColor};">${ohlc[2].toFixed(
+                    2
+                  )}</span> ` +
+                  `<span style="color:black;">收 : </span><span style="color:${closeColor};">${ohlc[3].toFixed(
+                    2
+                  )}</span>`;
+              }
 
               return `
-                    <div style="background:rgba(255,255,255,0.85); padding:8px; border-radius:6px; font-size:13px;">
-                      <div style="font-weight:bold; margin-bottom:4px;">${date}</div>
-                      <div style="color:#555;">成交量: ${volumeFormatted}</div>
-                      ${techLinesHtml}
-                    </div>`;
+          <div style="background:rgba(255,255,255,0.85); padding:8px; border-radius:6px; font-size:13px;">
+            <div style="font-weight:bold; margin-bottom:4px;">${date}</div>
+            <div style="color:#555;">成交量: ${fmtVol(volRaw)}</div>
+            ${techLinesHtml}
+          </div>`;
             },
           },
         };
 
-        chart = new ApexCharts(document.querySelector("#chart"), options);
-        chart.render();
+        // 紅/綠互斥的兩條成交量序列
+        const volUp = data.map((r) =>
+          Number(r.close) >= Number(r.open) ? Number(r.volume) : null
+        );
+        const volDown = data.map((r) =>
+          Number(r.close) < Number(r.open) ? Number(r.volume) : null
+        );
 
+        // 原本（請改掉）
+        const volData = (window.stockData || []).map((row, idx) => {
+          const open = +row.open || 0;
+          const close = +row.close || 0;
+          const up = close >= open;
+          return {
+            x: window.tradingDates[idx], // ← 這行從 idx 改成日期字串
+            y: +row.volume || 0,
+            fillColor: up ? "#e74c3c" : "#2ecc71",
+          };
+        });
+
+        // ===== 下方「成交量」圖 =====
+        const optionsVolume = {
+          chart: {
+            id: "volumePane",
+            group: "stockPane", // 和上方價格圖同一個 group
+            type: "bar",
+            height: 240,
+            toolbar: { show: false },
+          },
+
+          plotOptions: {
+            bar: {
+              columnWidth: "70%",
+              // （可選）視覺更乾淨一點：圓角 & 無邊框
+              borderRadius: 2,
+            },
+          },
+          stroke: { width: 0 },
+
+          //  讓時間刻度不擋到柱子（可保留原本 categories）
+          grid: { padding: { top: 0, right: 0, bottom: 0, left: 20 } },
+          xaxis: {
+            type: "category",
+            categories: window.tradingDates,
+            tickAmount: 12,
+            labels: {
+              rotate: -45,
+              offsetY: 6,
+              rotateAlways: true,
+              hideOverlappingLabels: true,
+            },
+            axisTicks: { show: false },
+            tooltip: { enabled: false },
+          },
+
+          yaxis: makeVolumeYAxis(),
+
+          dataLabels: { enabled: false },
+          tooltip: {
+            shared: false,
+            y: { formatter: formatVolume }, // ← 這行讓滑鼠提示也顯示 K/M/B
+          },
+          series: [
+            {
+              name: "Volume",
+              type: "bar",
+              data: volData,
+            },
+          ],
+        };
+
+        window.priceChart = new ApexCharts(
+          document.querySelector("#priceChart"),
+          optionsPrice
+        );
+        window.volumeChart = new ApexCharts(
+          document.querySelector("#volumeChart"),
+          optionsVolume
+        );
+        window.priceChart.render();
+        window.volumeChart.render();
+        ensureVolumeAxis(); // 時間切換後，保險再補一次
+        chart = window.priceChart; // ← 讓後面用到 chart 的地方都指向價格圖
+
+        // ===== 還原原本的「勾選技術指標」行為（重要：不要把成交量塞回主圖）=====
         const indicatorFieldMap = {
           "Sma 5": "Sma 5",
           "Sma 10": "Sma 10",
@@ -877,20 +1020,9 @@
           J: "J",
           Bias: "Bias",
         };
-
-        const indicatorAxisMap = {
-          "Sma 5": 0,
-          "Sma 10": 0,
-          "Sma 20": 0,
-          "Sma 60": 0,
-          "Sma 120": 0,
-          "Sma 240": 0,
-          DIF: 2, // MACD 軸
-          DEA: 2, // MACD 軸
-          K: 3, // KDJ 軸
-          D: 3,
-          J: 3,
-          Bias: 4, // Bias 軸
+        const indicatorGroups = {
+          price: ["Sma 5", "Sma 10", "Sma 20", "Sma 60", "Sma 120", "Sma 240"],
+          momentum: ["Bias", "DIF", "DEA", "K", "D", "J"],
         };
 
         document.querySelectorAll(".indicator-check").forEach((checkbox) => {
@@ -899,33 +1031,10 @@
               document.querySelectorAll(".indicator-check:checked")
             ).map((cb) => cb.value);
 
-            // 🔑 永遠保留 K線 + 成交量
+            // 只更新「上面價格圖」的 series
             let newSeries = [
               { name: "K線圖", type: "candlestick", data: chartData },
-              {
-                name: "成交量",
-                type: "bar",
-                data: volumeData,
-                yAxisIndex: 1,
-                color: "rgba(100,149,237,0.4)",
-              },
             ];
-
-            // 如果沒勾 → 只顯示 K線+成交量
-            if (checked.length === 0) {
-              chart.updateOptions({
-                series: newSeries,
-                yaxis: [
-                  { ...baseYaxis[0], show: true }, // 價格 / SMA 永遠顯示
-                  { ...baseYaxis[1], show: true }, // 成交量 永遠顯示
-                  { ...baseYaxis[2], show: false }, // MACD 軸
-                  { ...baseYaxis[3], show: false }, // KDJ 軸
-                  { ...baseYaxis[4], show: false }, // Bias 軸
-                ],
-              });
-
-              return;
-            }
 
             let momentumSelected = false;
 
@@ -937,76 +1046,141 @@
                 y: row[field] != null ? parseFloat(row[field]) : null,
               }));
 
-              // ✅ 用 mapping 直接決定要放哪個 y 軸
-              let yAxisIndex = indicatorAxisMap[name] ?? 0;
+              let yAxisIndex = 0; // SMA 類：價格軸
+              if (indicatorGroups.momentum.includes(name)) {
+                yAxisIndex = 1; // 動量軸
+                momentumSelected = true;
+              }
 
               newSeries.push({
                 name,
                 type: "line",
                 data: dataSeries,
                 yAxisIndex,
-                color: indicatorColors[name] || "#000", // 預設黑色
+                color: indicatorColors[name] || "#000",
               });
             });
 
-            chart.updateOptions({
-              series: newSeries,
-              yaxis: [
-                { ...baseYaxis[0], show: true },
-                { ...baseYaxis[1], show: true },
-                {
-                  ...baseYaxis[2],
-                  show: checked.includes("DIF") || checked.includes("DEA"),
-                },
-                {
-                  ...baseYaxis[3],
-                  show:
-                    checked.includes("K") ||
-                    checked.includes("D") ||
-                    checked.includes("J"),
-                },
-                { ...baseYaxis[4], show: checked.includes("Bias") },
-              ],
-            });
+            chart.updateOptions(
+              {
+                series: newSeries,
+                xaxis: { type: "category", categories: window.tradingDates },
+                yaxis: [
+                  { ...chart.w.config.yaxis[0], show: true },
+                  {
+                    ...chart.w.config.yaxis[1],
+                    show: checked.some((n) =>
+                      indicatorGroups.momentum.includes(n)
+                    ),
+                  },
+                ],
+              },
+              false,
+              false
+            );
+
+            ApexCharts.exec(
+              "volumePane",
+              "updateOptions",
+              {
+                xaxis: { type: "category", categories: window.tradingDates },
+                yaxis: makeVolumeYAxis(),
+              },
+              false,
+              false
+            );
           };
-
-          // --- 共用的 hover 處理 ---
-          const label = checkbox.parentElement;
-
-          // 共用 hover 處理：只改線條粗細，不改文字樣式
-          function handleHover(isEnter) {
-            const name = checkbox.value;
-            const idx = chart.w.globals.seriesNames.indexOf(name);
-
-            if (idx >= 0) {
-              const widths = chart.w.config.series.map((s, i) => {
-                if (s.type === "line") {
-                  // hover 時把對應那條 line 加粗，其餘 line 保持 2，非 line(蠟燭/量) = 1
-                  return isEnter && i === idx ? 3 : 2;
-                }
-                return 1;
-              });
-
-              chart.updateOptions({ stroke: { width: widths } });
-            }
-          }
-
-          // 綁定在 checkbox 與 label（文字也會觸發，但文字本身不改變）
-          checkbox.addEventListener("mouseenter", () => handleHover(true));
-          checkbox.addEventListener("mouseleave", () => handleHover(false));
-          label.addEventListener("mouseenter", () => handleHover(true));
-          label.addEventListener("mouseleave", () => handleHover(false));
-
-          // 小優化：讓整個 label 顯示可點擊游標（不會改字體）
-          label.style.cursor = "pointer";
         });
-        // 顯示圖表後
-        // 圖表生成後
-        restoreCheckedIndicators(getCheckedIndicators());
-        applyIndicators();
 
-        restoreCheckedRules(getCheckedRules());
-        applyRules(); // 立即套用已勾選的線
+        // 初次載入：把已勾選的線套上
+        if (typeof restoreCheckedIndicators === "function") {
+          restoreCheckedIndicators(getCheckedIndicators());
+        }
+        if (typeof applyIndicators === "function") {
+          applyIndicators();
+        }
+
+        // 區隔線（若你有打開）
+        if (showPeriods) addPeriodSeparators(currentMonths);
+      }
+
+      function formatVolume(val) {
+        if (val == null || isNaN(val)) return "";
+        const n = +val;
+        if (n >= 1e9) return (n / 1e9).toFixed(0) + "B";
+        if (n >= 1e6) return (n / 1e6).toFixed(0) + "M";
+        if (n >= 1e3) return (n / 1e3).toFixed(0) + "K";
+        return String(Math.round(n));
+      }
+
+      function makeVolumeYAxis() {
+        const arr = (window.stockData || []).map((r) => +r.volume || 0);
+        const vmax = Math.max(1, ...arr);
+        const ratio = window.VOL_PAD_TOP_RATIO ?? 0.18;
+        return {
+          title: { text: "Volume" }, // 每次更新時都帶上，避免被覆蓋
+          min: 0,
+          max: Math.ceil(vmax * (1 + ratio)),
+          labels: { formatter: formatVolume },
+        };
+      }
+
+      // X 軸永遠使用目前的 categories（交易日字串）
+      function makeXAxisCategories() {
+        return {
+          type: "category",
+          categories: window.tradingDates,
+          tickAmount: Math.min(12, window.tradingDates?.length || 12),
+          labels: { rotate: -45 },
+          tooltip: { enabled: false },
+        };
+      }
+      function recomputeVolumeAxis() {
+        if (!window.volumeChart) return;
+        window.volumeChart.updateOptions(
+          { yaxis: makeVolumeYAxis() },
+          false,
+          false
+        );
+      }
+
+      function updateVolRatio(value) {
+        VOL_PAD_TOP_RATIO = parseFloat(value);
+        const label = document.getElementById("volRatioValue");
+        if (label) label.textContent = value;
+
+        if (window.volumeChart && window.stockData) {
+          const arr = (window.stockData || []).map((r) => +r.volume || 0);
+          const vmax = Math.max(1, ...arr);
+          const vmin = 0;
+          const vmaxAdj = Math.ceil(vmax * (1 + VOL_PAD_TOP_RATIO));
+
+          window.volumeChart.updateOptions(
+            {
+              yaxis: {
+                ...makeVolumeYAxis(), // 保留 title 與 labels.formatter
+                min: vmin,
+                max: vmaxAdj,
+              },
+            },
+            false,
+            false
+          );
+        }
+      }
+
+      function ensureVolumeAxis() {
+        if (!window.stockData) return;
+        ApexCharts.exec(
+          "volumePane",
+          "updateOptions",
+          {
+            yaxis: makeVolumeYAxis(),
+            tooltip: { y: { formatter: formatVolume } },
+          },
+          false,
+          false
+        );
       }
 
       function highlightConditions(rules) {
@@ -1015,7 +1189,27 @@
         let annotations = [];
 
         if (rules.length === 0) {
-          chart.updateOptions({ annotations: { points: [] } });
+          // ⚠️ 這裡也要保留 xaxis，不能清空
+          const existing = chart.w.config.annotations || {};
+          const existingXaxis = Array.isArray(existing.xaxis)
+            ? existing.xaxis
+            : [];
+          const existingPoints = Array.isArray(existing.points)
+            ? existing.points
+            : [];
+
+          // 保留 period-label
+          const preservedPeriod = existingPoints.filter((p) => {
+            const css = p.label?.cssClass || "";
+            return css.includes("period-label");
+          });
+
+          chart.updateOptions({
+            annotations: {
+              xaxis: existingXaxis,
+              points: preservedPeriod, // 沒有新規則 → 只保留 period
+            },
+          });
           return;
         }
 
@@ -1046,19 +1240,20 @@
             "kd-cross": "KD↑",
             "bias-high": "偏離↑",
             "bias-low": "偏離↓",
-            "three-red": "三紅",
+            "three-red": "連",
+            "three-down-volume": "量↓",
           };
 
           // 畫倒三角形的工具
           function makePoint(x, y, text, color = "#FF4560") {
             return {
-              x: x, // ✅ 用 idx
+              x: window.tradingDates[i],
               y: row.low * 0.98,
               marker: {
                 size: 5, // 比原本大一點
                 fillColor: "#000000", // 黑色實心
                 strokeColor: "#000000",
-                shape: "triangle", // ✅ 官方支援
+                shape: "triangle",
               },
               label: {
                 borderColor: "transparent",
@@ -1089,7 +1284,9 @@
             "three-red": () =>
               [row, prev, prev2].every(
                 (r) => parseFloat(r.close) > parseFloat(r.open)
-              ), // 🔑 新增
+              ),
+            "three-down-volume": () =>
+              row.volume < prev.volume && prev.volume < prev2.volume,
           };
 
           // 單選 → 單一條件
@@ -1109,8 +1306,38 @@
           }
         });
 
+        // 讀取現有 annotations
+        const existing = chart.w.config.annotations || {};
+        const existingXaxis = Array.isArray(existing.xaxis)
+          ? existing.xaxis
+          : [];
+        const existingPoints = Array.isArray(existing.points)
+          ? existing.points
+          : [];
+
+        // 只保留 period label
+        const preservedPeriod = existingPoints.filter((p) => {
+          const css = p.label?.cssClass || "";
+          return css.includes("period-label");
+        });
+
+        // highlight
+        const highlightPoints = annotations.map((a) => ({
+          ...a,
+          label: {
+            ...(a.label || {}),
+            cssClass:
+              (a.label && a.label.cssClass ? a.label.cssClass + " " : "") +
+              "highlight-marker",
+          },
+        }));
+
+        // 合併 → 保留分隔線 + period-label + 新的三角形
         chart.updateOptions({
-          annotations: { points: annotations },
+          annotations: {
+            xaxis: existingXaxis, // 保留區間分隔線
+            points: annotations, // 替換新的條件標註
+          },
         });
       }
 
@@ -1138,11 +1365,38 @@
           .querySelectorAll(".time-range-item")
           .forEach((item) => item.classList.remove("active"));
         el.classList.add("active");
-        // 按其他時間按鈕時隱藏自訂時間容器
+
         document.getElementById("customDateRange").style.display = "none";
-        // 這裡是原本的載入函數
-        loadStockWithRange(getSymbol(), range);
+
+        loadStockWithRange(getSymbol(), range).then(() => {
+          let months = 3;
+          if (range === "1m") months = 1;
+          if (range === "3m") months = 3;
+          if (range === "6m") months = 6;
+          if (range === "1y") months = 12;
+          if (range === "3y") months = 36;
+
+          // 記錄當前的區間（讓 zoom/scroll 時能重畫）
+          window.currentMonths = months;
+
+          addPeriodSeparators(months);
+          ensureVolumeAxis(); // 時間切換後，保險再補一次
+
+          pexCharts.exec(
+            "volumePane",
+            "updateOptions",
+            {
+              xaxis: { type: "category", categories: window.tradingDates },
+              yaxis: makeVolumeYAxis(),
+            },
+            false,
+            false
+          );
+        });
+
+        ensureAxesAll();
       }
+
       function toggleCustomDate() {
         const container = document.getElementById("customDateRange");
         const isHidden =
@@ -1174,46 +1428,62 @@
           },
         };
       }
-      document
-        .getElementById("symbolInput")
-        .addEventListener("input", async (e) => {
-          const keyword = e.target.value.trim();
-          const suggestions = document.getElementById("suggestions");
-          if (!keyword) return (suggestions.style.display = "none");
+      const symbolInput = document.getElementById("symbolInput");
+      const suggestions = document.getElementById("suggestions");
 
-          const { data, error } = await client
-            .from("stocks_meta")
-            .select("symbol, name_en, name_zh, short_name_en, short_name_zh")
-            .or(
-              `symbol.ilike.%${keyword}%,` +
-                `name_en.ilike.%${keyword}%,` +
-                `name_zh.ilike.%${keyword}%,` +
-                `short_name_en.ilike.%${keyword}%,` +
-                `short_name_zh.ilike.%${keyword}%`
-            )
+      // 輸入文字時 → 模糊搜尋
+      symbolInput.addEventListener("input", async (e) => {
+        const keyword = e.target.value.trim();
+        if (!keyword) return; // 不輸入就不處理，由 focus 事件處理
 
-            .limit(10);
+        const { data, error } = await client
+          .from("stocks_meta")
+          .select("symbol, name_en, name_zh, short_name_en, short_name_zh")
+          .or(
+            `symbol.ilike.%${keyword}%,` +
+              `name_en.ilike.%${keyword}%,` +
+              `name_zh.ilike.%${keyword}%,` +
+              `short_name_en.ilike.%${keyword}%,` +
+              `short_name_zh.ilike.%${keyword}%`
+          )
+          .limit(10);
 
-          if (error || !data || data.length === 0) {
-            suggestions.innerHTML = `<div style='padding:8px;'>無符合股票</div>`;
-            suggestions.style.display = "block";
-            return;
-          }
+        renderSuggestions(data, error);
+      });
 
-          suggestions.innerHTML = data
-            .map((item) => {
-              const nameDisplay =
-                item.name_zh ||
-                item.name_en ||
-                item.short_name_zh ||
-                item.short_name_en ||
-                "";
-              return `<div style='padding:8px; cursor:pointer' onclick='selectSymbol("${item.symbol}")'>${item.symbol} - ${nameDisplay}</div>`;
-            })
+      // 聚焦時 → 抓預設 10 筆股票
+      symbolInput.addEventListener("focus", async () => {
+        // 例如直接抓前 10 筆 (可加條件如熱門股票)
+        const { data, error } = await client
+          .from("stocks_meta")
+          .select("symbol, name_en, name_zh, short_name_en, short_name_zh")
+          .limit(10);
 
-            .join("");
+        renderSuggestions(data, error);
+      });
+
+      function renderSuggestions(data, error) {
+        if (error || !data || data.length === 0) {
+          suggestions.innerHTML = `<div style='padding:8px;'>無符合股票</div>`;
           suggestions.style.display = "block";
-        });
+          return;
+        }
+
+        suggestions.innerHTML = data
+          .map((item) => {
+            const nameDisplay =
+              item.name_zh ||
+              item.name_en ||
+              item.short_name_zh ||
+              item.short_name_en ||
+              "";
+            return `<div style='padding:8px; cursor:pointer' onclick='selectSymbol("${item.symbol}")'>
+                ${item.symbol} - ${nameDisplay}
+              </div>`;
+          })
+          .join("");
+        suggestions.style.display = "block";
+      }
 
       // Hide suggestions when clicking outside
       document.addEventListener("click", function (event) {
@@ -1224,11 +1494,10 @@
         }
       });
 
-      /*
       document.addEventListener("DOMContentLoaded", () => {
         loadStockWithRange("AAPL", "3m"); // Load Apple stock for 1 year by default
       });
-*/
+
       // 統一顏色表
       const indicatorColors = {
         "Sma 5": "#e74c3c", // 紅
@@ -1252,6 +1521,163 @@
           cb.parentElement.style.color = color;
           cb.dataset.color = color; // 儲存顏色以便後續使用
         }
+      });
+
+      // === 劃分區間 + 加上標註 ===
+      function addPeriodSeparators(periodMonths) {
+        if (!window.tradingDates || window.tradingDates.length === 0) return;
+        if (!chart || !chart.w) return;
+
+        // 1個月 → 不畫區隔
+        if (periodMonths === 1) {
+          chart.updateOptions({
+            annotations: {
+              xaxis: [],
+              points: chart.w.config.annotations.points || [],
+            },
+          });
+          return;
+        }
+
+        const startDate = new Date(window.tradingDates[0]);
+        const endDate = new Date(
+          window.tradingDates[window.tradingDates.length - 1]
+        );
+        const totalMs = endDate - startDate;
+        if (totalMs <= 0) return;
+
+        let sections;
+        let labels = [];
+
+        if (periodMonths >= 12) {
+          // 年度 → 用季度
+          sections = 4;
+          labels = ["Q1", "Q2", "Q3", "Q4"];
+        } else {
+          // 其他 → 按月份數量切
+          sections = periodMonths;
+          labels = Array.from({ length: sections }, (_, i) =>
+            (i + 1).toString()
+          );
+        }
+
+        const interval = totalMs / sections;
+        const xaxisAnnotations = [];
+        const pointAnnotations = [];
+
+        const yTop =
+          (chart.w &&
+            chart.w.config &&
+            chart.w.config.yaxis &&
+            chart.w.config.yaxis[0] &&
+            chart.w.config.yaxis[0].max) ||
+          null;
+
+        for (let i = 0; i < sections; i++) {
+          const sectionStart = new Date(startDate.getTime() + interval * i);
+          const sectionEnd = new Date(startDate.getTime() + interval * (i + 1));
+          const middle = new Date(
+            (sectionStart.getTime() + sectionEnd.getTime()) / 2
+          );
+
+          let middleIndex = window.tradingDates.findIndex(
+            (d) => new Date(d).getTime() >= middle.getTime()
+          );
+          if (middleIndex === -1) middleIndex = window.tradingDates.length - 1;
+
+          // Q1/Q2... or 數字
+          pointAnnotations.push({
+            x: window.tradingDates[middleIndex],
+            y: yTop ? yTop * 0.98 : undefined,
+            marker: { size: 0 },
+            label: {
+              borderColor: "transparent",
+              style: {
+                background: "transparent",
+                color: "#000",
+                fontSize: "14px",
+                fontWeight: "bold",
+                padding: "0",
+              },
+              text: labels[i] || (i + 1).toString(),
+              cssClass: "annotation-vertical period-label",
+            },
+          });
+
+          // 分隔線（最後一條不要）
+          if (i < sections - 1) {
+            let lineIndex = window.tradingDates.findIndex(
+              (d) => new Date(d).getTime() >= sectionEnd.getTime()
+            );
+            if (lineIndex !== -1 && lineIndex < window.tradingDates.length) {
+              xaxisAnnotations.push({
+                x: window.tradingDates[lineIndex],
+                borderColor: "#999",
+                strokeDashArray: 4,
+                cssClass: "period-separator",
+              });
+            }
+          }
+        }
+
+        const existing = chart.w.config.annotations || {};
+        const existingXaxis = Array.isArray(existing.xaxis)
+          ? existing.xaxis
+          : [];
+        const existingPoints = Array.isArray(existing.points)
+          ? existing.points
+          : [];
+
+        // 保留非 period 的 points
+        const preservedPoints = existingPoints.filter((p) => {
+          if (!p || !p.label) return true;
+          const css = p.label.cssClass || "";
+          return !css.includes("period-label");
+        });
+
+        // 保留非 period 的 xaxis
+        const preservedXaxis = existingXaxis.filter((x) => {
+          const css = x.cssClass || "";
+          return !css.includes("period-separator");
+        });
+
+        chart.clearAnnotations();
+        pointAnnotations.forEach((p) => chart.addPointAnnotation(p));
+        xaxisAnnotations.forEach((x) => chart.addXaxisAnnotation(x));
+      }
+
+      let currentMonths = 3; // 紀錄目前選擇的月份
+      let showPeriods = false; // 是否顯示時間區隔
+
+      function togglePeriods() {
+        showPeriods = document.getElementById("togglePeriods").checked;
+        if (showPeriods) {
+          addPeriodSeparators(currentMonths); // 勾選 → 畫出虛線
+        } else {
+          chart.clearAnnotations(); // 取消勾選 → 移除虛線
+        }
+      }
+
+      // === 綁定按鈕事件 ===
+      document.querySelectorAll(".time-range-item").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const range = btn.getAttribute("onclick").match(/'(.*?)'/)[1];
+          let months = 3; // 預設值
+          if (range === "1m") months = 1;
+          if (range === "3m") months = 3;
+          if (range === "6m") months = 6;
+          if (range === "1y") months = 12;
+          if (range === "3y") months = 36;
+
+          currentMonths = months; // 更新狀態
+
+          // ⚡️ 每次更換時間 → 檢查是否要顯示虛線
+          if (showPeriods) {
+            addPeriodSeparators(months);
+          } else {
+            chart.clearAnnotations();
+          }
+        });
       });
     </script>
   </body>

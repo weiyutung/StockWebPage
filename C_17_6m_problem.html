@@ -281,7 +281,6 @@
   </head>
   <body>
     <div id="main-content">
-      <h1>股票分析平台</h1>
       <!-- 加一個「三槓選單」 -->
       <div class="menu-container" id="menuContainer">
         <div class="menu-icon">
@@ -611,42 +610,6 @@
       let originalMinX = null;
       let originalMaxX = null;
 
-      // 1) 全域：成交量數字轉 K/M/B（y 軸 + tooltip 都用它）
-      function formatVolume(val) {
-        if (val == null || isNaN(val)) return "";
-        const n = +val;
-        if (n >= 1e9) return (n / 1e9).toFixed(0) + "B";
-        if (n >= 1e6) return (n / 1e6).toFixed(0) + "M";
-        if (n >= 1e3) return (n / 1e3).toFixed(0) + "K";
-        return String(Math.round(n));
-      }
-
-      // 2) 成交量 y 軸（每次重算會自動抓 window.stockData）
-      function makeVolumeYAxis() {
-        const arr = (window.stockData || []).map((r) => +r.volume || 0);
-        const vmax = Math.max(1, ...arr); // 這裡就是 ...arr
-        const ratio = window.VOL_PAD_TOP_RATIO ?? VOL_PAD_TOP_RATIO;
-        return {
-          title: { text: "成交量 Volume" },
-          min: 0,
-          max: Math.ceil(vmax * (1 + ratio)),
-          labels: { formatter: formatVolume },
-        };
-      }
-
-      // 3) 只改「成交量圖表」的 y 軸與 tooltip（千萬別誤用 chart）
-      function recomputeVolumeAxis() {
-        if (!volumeChart) return;
-        volumeChart.updateOptions(
-          {
-            yaxis: makeVolumeYAxis(),
-            tooltip: { y: { formatter: formatVolume } },
-          },
-          false,
-          false
-        );
-      }
-
       //保持顯示技術線
       //儲存目前勾選的函式
       function getCheckedIndicators() {
@@ -766,6 +729,23 @@
         console.log("data:", data);
       }
 
+      function formatVolume(val) {
+        if (val == null || isNaN(val)) return "";
+        const n = +val;
+        if (n >= 1e9) return (n / 1e9).toFixed(0) + "B";
+        if (n >= 1e6) return (n / 1e6).toFixed(0) + "M";
+        if (n >= 1e3) return (n / 1e3).toFixed(0) + "K";
+        return String(Math.round(n));
+      }
+
+      // 例：把後端的 row.date 轉成 "YYYY-MM-DD"
+      window.tradingDates = (window.stockData || []).map((row) => {
+        const d = new Date(row.date);
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        return `${d.getFullYear()}-${mm}-${dd}`;
+      });
+
       function displayStockData(data, symbol) {
         window.stockData = data;
 
@@ -804,6 +784,30 @@
         if (chart) chart.destroy();
         if (volumeChart) volumeChart.destroy();
 
+        // K 線
+        const kSeries = [
+          {
+            name: "Price",
+            type: "candlestick",
+            data: window.stockData.map((row, i) => ({
+              x: window.tradingDates[i],
+              y: [row.open, row.high, row.low, row.close],
+            })),
+          },
+        ];
+
+        // 成交量
+        const volSeries = [
+          {
+            name: "Volume",
+            type: "bar",
+            data: window.stockData.map((row, i) => ({
+              x: window.tradingDates[i],
+              y: row.volume ?? 0,
+            })),
+          },
+        ];
+
         // ===== 上方「價格＋技術線」圖 =====
         const optionsPrice = {
           chart: {
@@ -812,6 +816,7 @@
             type: "candlestick",
             height: 420,
           },
+          series: kSeries,
           legend: { show: false },
           grid: { padding: { top: 0, right: 0, bottom: 0, left: 10 } },
 
@@ -910,7 +915,7 @@
               return `
           <div style="background:rgba(255,255,255,0.85); padding:8px; border-radius:6px; font-size:13px;">
             <div style="font-weight:bold; margin-bottom:4px;">${date}</div>
-            <div style="color:#555;">成交量: ${formatVolume(volRaw)}</div>
+            <div style="color:#555;">成交量: ${fmtVol(volRaw)}</div>
             ${techLinesHtml}
           </div>`;
             },
@@ -925,7 +930,6 @@
           Number(r.close) < Number(r.open) ? Number(r.volume) : null
         );
 
-        // === [C] 下方成交量圖 ============================================
         const volData = (window.stockData || []).map((row, idx) => {
           const open = +row.open || 0;
           const close = +row.close || 0;
@@ -937,6 +941,7 @@
           };
         });
 
+        // ===== 下方「成交量」圖 =====
         const optionsVolume = {
           chart: {
             id: "volumePane",
@@ -945,7 +950,7 @@
             height: 240,
             toolbar: { show: false },
           },
-
+          series: volSeries,
           plotOptions: {
             bar: {
               columnWidth: "70%",
@@ -956,7 +961,7 @@
           stroke: { width: 0 },
 
           //  讓時間刻度不擋到柱子（可保留原本 categories）
-          grid: { padding: { top: 0, right: 0, bottom: 0, left: 10 } },
+          grid: { padding: { top: 0, right: 0, bottom: 0, left: 20 } },
           xaxis: {
             type: "category",
             categories: window.tradingDates,
@@ -972,10 +977,11 @@
           },
 
           yaxis: makeVolumeYAxis(),
+
           dataLabels: { enabled: false },
           tooltip: {
             shared: false,
-            y: { formatter: formatVolume }, // ← tooltip 也格式化成 K/M/B
+            y: { formatter: formatVolume }, // ← 這行讓滑鼠提示也顯示 K/M/B
           },
           series: [
             {
@@ -986,19 +992,17 @@
           ],
         };
 
-        const priceEl = document.querySelector("#priceChart");
-        const volumeEl = document.querySelector("#volumeChart");
-        window.priceChart = new ApexCharts(priceEl, optionsPrice);
-        window.volumeChart = new ApexCharts(volumeEl, optionsVolume);
+        window.priceChart = new ApexCharts(
+          document.querySelector("#priceChart"),
+          optionsPrice
+        );
+        window.volumeChart = new ApexCharts(
+          document.querySelector("#volumeChart"),
+          optionsVolume
+        );
         window.priceChart.render();
         window.volumeChart.render();
-
-        // 同步到本地變數，之後 recomputeVolumeAxis() 才抓得到
-        chart = window.priceChart; // 上面 K 線
-        volumeChart = window.volumeChart; // 下面 成交量
-
-        // render 後再補一次（避免被其他程式覆蓋掉 y 軸設定）
-        setTimeout(recomputeVolumeAxis, 0);
+        chart = window.priceChart; // ← 讓後面用到 chart 的地方都指向價格圖
 
         // ===== 還原原本的「勾選技術指標」行為（重要：不要把成交量塞回主圖）=====
         const indicatorFieldMap = {
@@ -1056,17 +1060,10 @@
               });
             });
 
-            ApexCharts.exec(
-              "volumePane",
-              "updateOptions",
-              { yaxis: makeVolumeYAxis() },
-              false,
-              false
-            );
-
             chart.updateOptions(
               {
                 series: newSeries,
+                xaxis: { type: "category", categories: window.tradingDates },
                 yaxis: [
                   { ...chart.w.config.yaxis[0], show: true },
                   {
@@ -1076,6 +1073,17 @@
                     ),
                   },
                 ],
+              },
+              false,
+              false
+            );
+
+            ApexCharts.exec(
+              "volumePane",
+              "updateOptions",
+              {
+                xaxis: { type: "category", categories: window.tradingDates },
+                yaxis: makeVolumeYAxis(),
               },
               false,
               false
@@ -1095,14 +1103,46 @@
         if (showPeriods) addPeriodSeparators(currentMonths);
       }
 
+      function makeVolumeYAxis() {
+        const arr = (window.stockData || []).map((r) => +r.volume || 0);
+        const vmax = Math.max(1, ...arr);
+        const ratio = window.VOL_PAD_TOP_RATIO ?? 0.18;
+        return {
+          title: { text: "成交量 Volume" }, // 每次更新時都帶上，避免被覆蓋
+          min: 0,
+          max: Math.ceil(vmax * (1 + ratio)),
+          labels: { formatter: formatVolume },
+        };
+      }
+
+      function recomputeVolumeAxis() {
+        if (!window.volumeChart) return;
+        window.volumeChart.updateOptions(
+          { yaxis: makeVolumeYAxis() },
+          false,
+          false
+        );
+      }
+
       function updateVolRatio(value) {
         VOL_PAD_TOP_RATIO = parseFloat(value);
         const label = document.getElementById("volRatioValue");
         if (label) label.textContent = value;
 
         if (window.volumeChart && window.stockData) {
+          const arr = (window.stockData || []).map((r) => +r.volume || 0);
+          const vmax = Math.max(1, ...arr);
+          const vmin = 0;
+          const vmaxAdj = Math.ceil(vmax * (1 + VOL_PAD_TOP_RATIO));
+
           window.volumeChart.updateOptions(
-            { yaxis: makeVolumeYAxis() }, // 用完整物件，避免蓋掉 title/labels
+            {
+              yaxis: {
+                ...makeVolumeYAxis(), // 保留 title 與 labels.formatter
+                min: vmin,
+                max: vmaxAdj,
+              },
+            },
             false,
             false
           );
@@ -1307,6 +1347,17 @@
 
           addPeriodSeparators(months);
         });
+
+        ApexCharts.exec(
+          "volumePane",
+          "updateOptions",
+          {
+            xaxis: { type: "category", categories: window.tradingDates },
+            yaxis: makeVolumeYAxis(),
+          },
+          false,
+          false
+        );
       }
 
       function toggleCustomDate() {
