@@ -6,9 +6,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script>
-      // 成交量壓縮比例（全域可調整） 0.3~0.6建議範圍
-      let VOL_PAD_TOP_RATIO = 0.1;
-
       if (
         location.hash.includes("access_token") &&
         !location.pathname.endsWith("ResetPassword.html")
@@ -263,12 +260,12 @@
         display: flex;
         flex-direction: column;
         gap: 0; /* 兩張圖間距，想更緊可改 0~4 */
-        height: 600px; /* 你要的總高度，想更高就加大 */
+        height: 500px; /* 你要的總高度，想更高就加大 */
       }
 
       /* 上面：價格 + 技術線（約 4/5 高度） */
       #priceChart {
-        flex: 4 1 0;
+        flex: 6 1 0;
         min-height: 0;
       }
 
@@ -605,6 +602,17 @@
       }
       window.onload = checkLoginStatus;
 
+      // 成交量壓縮比例（全域可調整） 0.3~0.6建議範圍
+      let VOL_PAD_TOP_RATIO = 0.1;
+      // === 指標清單（key = 後端欄位名, name = 圖例名, cb = checkbox 的 id）===
+      const INDICATORS = [
+        { key: "Sma_5", name: "SMA 5", cb: "chkSma5" },
+        { key: "Sma_10", name: "SMA 10", cb: "chkSma10" },
+        { key: "Sma_20", name: "SMA 20", cb: "chkSma20" },
+        { key: "Sma_60", name: "SMA 60", cb: "chkSma60" },
+        // 之後要加 DIF/DEA/K/D...，照格式擴充即可
+      ];
+
       let chart;
       let volumeChart; // 下面成交量圖（新增）
       let originalMinX = null;
@@ -805,7 +813,7 @@
             id: "pricePane",
             group: "stockPane", // 與下方 volume 同 group → 縮放/滾動同步
             type: "candlestick",
-            height: 420,
+            height: 350,
             events: {
               mounted: function () {
                 ensureVolumeAxis();
@@ -946,7 +954,7 @@
             id: "volumePane",
             group: "stockPane", // 和上方價格圖同一個 group
             type: "bar",
-            height: 240,
+            height: 150,
             toolbar: { show: false },
           },
 
@@ -1174,6 +1182,7 @@
           "volumePane",
           "updateOptions",
           {
+            xaxis: { type: "category", categories: window.tradingDates },
             yaxis: makeVolumeYAxis(),
             tooltip: { y: { formatter: formatVolume } },
           },
@@ -1381,19 +1390,58 @@
           addPeriodSeparators(months);
           ensureVolumeAxis(); // 時間切換後，保險再補一次
 
-          pexCharts.exec(
+          // 1) 重新組資料（沿用 idx 對 categories）
+          const chartData = (window.stockData || []).map((row, idx) => ({
+            x: idx,
+            y: [+row.open, +row.high, +row.low, +row.close],
+          }));
+
+          const volData = (window.stockData || []).map((row, idx) => {
+            const open = +row.open || 0;
+            const close = +row.close || 0;
+            const up = close >= open;
+            return {
+              x: idx,
+              y: +row.volume || 0,
+              // 你原本的顏色規則
+              fillColor: up ? "#e74c3c" : "#2ecc71",
+            };
+          });
+
+          // 2) 同步更新「K 線」：資料 + x 軸（categories）
+          ApexCharts.exec(
+            "pricePane",
+            "updateSeries",
+            [{ name: window.currentSymbol || "Price", data: chartData }],
+            true // animate
+          );
+          ApexCharts.exec(
+            "pricePane",
+            "updateOptions",
+            { xaxis: { type: "category", categories: window.tradingDates } },
+            false,
+            false
+          );
+
+          // 3) 同步更新「成交量」：資料 + x 軸（categories）+ y 軸（重算）
+          ApexCharts.exec(
+            "volumePane",
+            "updateSeries",
+            [{ name: "Volume", data: volData }],
+            true // animate
+          );
+          ApexCharts.exec(
             "volumePane",
             "updateOptions",
             {
               xaxis: { type: "category", categories: window.tradingDates },
               yaxis: makeVolumeYAxis(),
+              tooltip: { y: { formatter: formatVolume } },
             },
             false,
             false
           );
         });
-
-        ensureAxesAll();
       }
 
       function toggleCustomDate() {
