@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>股票資料展示</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <style>
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 20px;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: center;
+      }
+      th {
+        background-color: #f2f2f2;
+      }
+      select,
+      input[type="date"],
+      button {
+        font-size: 16px;
+        margin: 5px;
+        padding: 5px;
+      }
+      
+      #chart {
+        max-width: 1000px;
+        margin: 20px auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>股票資料</h1>
+
+
+    <!-- 選擇條件 -->
+    <label for="symbolSelect">股票代號：</label>
+    <select id="symbolSelect">
+      <option value="">請選擇</option>
+      <option value="AAPL">AAPL</option>
+      <option value="AMGN">AMGN</option>
+      <option value="AXP">AXP</option>
+      <option value="BA">BA</option>
+      <option value="CAT">CAT</option>
+      <option value="CRM">CRM</option>
+      <option value="CSCO">CSCO</option>
+      <option value="CVX">CVX</option>
+      <option value="DIS">DIS</option>
+      <option value="GS">GS</option>
+      <option value="HD">HD</option>
+      <option value="HON">HON</option>
+      <option value="IBM">IBM</option>
+      <option value="INTC">INTC</option>
+      <option value="JNJ">JNJ</option>
+      <option value="JPM">JPM</option>
+      <option value="KO">KO</option>
+      <option value="MCD">MCD</option>
+      <option value="MMM">MMM</option>
+      <option value="MRK">MRK</option>
+      <option value="MSFT">MSFT</option>
+      <option value="NKE">NKE</option>
+      <option value="PG">PG</option>
+      <option value="TRV">TRV</option>
+      <option value="UNH">UNH</option>
+      <option value="V">V</option>
+      <option value="VZ">VZ</option>
+      <option value="WBA">WBA</option>
+      <option value="WMT">WMT</option>
+    </select>
+
+    <label>起始日：</label>
+    <input type="date" id="startDate" />
+
+    <label>結束日：</label>
+    <input type="date" id="endDate" />
+
+    <button onclick="loadStocks()">查詢</button>
+
+    <!-- 技術指標複選框 -->
+    <div id="indicatorOptions">
+      <label><input type="checkbox" value="sma_5" /> SMA 5</label>
+      <label><input type="checkbox" value="sma_10" /> SMA 10</label>
+      <label><input type="checkbox" value="sma_20" /> SMA 20</label>
+      <label><input type="checkbox" value="sma_60" /> SMA 60</label>
+      <label><input type="checkbox" value="sma_120" /> SMA 120</label>
+      <label><input type="checkbox" value="sma_240" /> SMA 240</label>
+      <label><input type="checkbox" value="macd" /> MACD</label>
+      <label><input type="checkbox" value="k" /> K</label>
+      <label><input type="checkbox" value="d" /> D</label>
+      <label><input type="checkbox" value="j" /> J</label>
+      <label><input type="checkbox" value="atr" /> ATR</label>
+      <label><input type="checkbox" value="cci" /> CCI</label>
+      <label><input type="checkbox" value="mom_6" /> MOM 6</label>
+      <label><input type="checkbox" value="mom_12" /> MOM 12</label>
+      <label><input type="checkbox" value="mom_10" /> MOM 10</label>
+      <label><input type="checkbox" value="mom_18" /> MOM 18</label>
+      <label><input type="checkbox" value="roc_5" /> ROC 5</label>
+      <label><input type="checkbox" value="roc_10" /> ROC 10</label>
+      <label><input type="checkbox" value="roc_12" /> ROC 12</label>
+      <label><input type="checkbox" value="willr" /> Willr</label>
+      <label><input type="checkbox" value="bias" /> Bias</label>
+      <label><input type="checkbox" value="volume_percentage" /> Volume Percentage</label>
+      <label><input type="checkbox" value="volume_oscillator" /> Volume Oscillator</label>
+    </div>
+
+    <!-- 蠟燭圖標題 + OHLC顯示 -->
+    <div style="max-width: 1200px; margin: 0 auto;">
+      <h2 id="chartTitle" style="text-align:left;  font-weight: bold; padding: 0 20px;"></h2>
+      <div id="ohlcInfo" style="text-align:left; font-size: 16px; padding: 0 20px;"></div>
+      <div id="chart"></div>
+    </div>
+
+    <!-- 資料表格 -->
+    <table id="stockTable">
+      <thead>
+        <tr>
+          <th>日期</th>
+          <th>股票代號</th>
+          <th>開盤價</th>
+          <th>最高價</th>
+          <th>最低價</th>
+          <th>收盤價</th>
+          <th>成交量</th>
+        </tr>
+      </thead>
+      <tbody id="stockBody"></tbody>
+    </table>
+
+    <script>
+      const SUPABASE_URL = "https://cqtfffupninvnbxkbgjv.supabase.co";
+      const SUPABASE_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxdGZmZnVwbmludm5ieGtiZ2p2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3NDY4NjEsImV4cCI6MjA2NjMyMjg2MX0.joUVlX5EZdoL1XGzR2TIOnV6VfWhntKQzy7KXxcCbH0";
+
+      const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      let chart;
+
+      async function loadStocks() {
+        const symbol = document.getElementById("symbolSelect").value;
+        const start = document.getElementById("startDate").value;
+        const end = document.getElementById("endDate").value;
+
+        const selectedIndicators = Array.from(
+          document.querySelectorAll('#indicatorOptions input[type="checkbox"]:checked')
+        ).map(cb => cb.value);
+
+        if (!symbol || !start || !end) {
+          alert("請選擇股票代號與日期區間");
+          return;
+        }
+
+        const { data, error } = await client
+          .from("stocks_2")
+          .select("*")
+          .eq("symbol", symbol)
+          .gte("date", start)
+          .lte("date", end)
+          .order("date", { ascending: true });
+
+        const tbody = document.getElementById("stockBody");
+        tbody.innerHTML = "";
+
+        if (error || !data || data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7">沒有資料</td></tr>`;
+          return;
+        }
+
+        // 更新表格
+        data.forEach((row) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${row.date}</td>
+            <td>${row.symbol}</td>
+            <td>${parseFloat(row.open).toFixed(3)}</td>
+            <td>${parseFloat(row.high).toFixed(3)}</td>
+            <td>${parseFloat(row.low).toFixed(3)}</td>
+            <td>${parseFloat(row.close).toFixed(3)}</td>
+            <td>${parseFloat(row.volume).toFixed(3)}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        // 主K線圖資料
+        const chartData = data.map((row) => ({
+          x: new Date(row.date),
+          y: [
+            parseFloat(row.open),
+            parseFloat(row.high),
+            parseFloat(row.low),
+            parseFloat(row.close),
+          ],
+        }));
+
+        // 額外指標線
+        const extraSeries = [];
+        selectedIndicators.forEach((indicator) => {
+          const seriesData = data.map((row) => {
+            const val = parseFloat(row[indicator]);  // 正常寫法
+            return {
+              x: new Date(row.date),
+              y: !isNaN(val) ? val : null,
+            };
+          });
+
+          extraSeries.push({
+            name: indicator,
+            type: "line",
+            data: seriesData,
+            
+          });
+        });
+        console.log("💡 Sma 5 第一筆：", data[0]["Sma 5"]);
+        console.log("💡 轉成數字：", parseFloat(data[0]["Sma 5"]));
+
+        // 若已存在圖表，銷毀
+        if (chart) chart.destroy();
+
+        // 自動設定 y 軸上下限
+        const prices = data.flatMap((row) => [parseFloat(row.high), parseFloat(row.low)]);
+        const minY = Math.min(...prices) * 0.98;
+        const maxY = Math.max(...prices) * 1.02;
+
+        document.getElementById("chartTitle").innerText = `${symbol}`;
+
+        const options = {
+          chart: {
+            type: "line",
+            height: 600,
+            zoom: { enabled: true },
+            events: {
+              mounted: function (chartContext, config) {
+                // 儲存初始 zoom 範圍
+                const xRange = chartContext.w.globals.minX;
+                const yRange = chartContext.w.globals.maxX;
+                originalMinX = xRange;
+                originalMaxX = yRange;
+              },
+              zoomed: function (chartContext, { xaxis }) {
+                const zoomSpan = xaxis.max - xaxis.min;
+                const totalSpan = originalMaxX - originalMinX;
+                const zoomRatio = totalSpan / zoomSpan;
+
+                // 控制 marker 大小：隨 zoom 增加但平滑，限制最大不超過 4
+                const newSize = Math.max(2, Math.min(4, 2 + Math.log10(zoomRatio)));
+
+                chart.updateOptions({
+                  markers: {
+                    size: newSize,
+                  },
+                }, false, true);
+              },
+              
+            },
+          },
+
+          tooltip: {
+            shared: true,
+            custom: function({ series, seriesIndex, dataPointIndex, w }) {
+              const ohlc = chartData[dataPointIndex].y;
+              const date = chartData[dataPointIndex].x.toISOString().split("T")[0];
+              const [open, high, low, close] = ohlc;
+
+              // ✅ 正確顏色邏輯：漲綠、跌紅、平灰
+              const color = close > open ? '#2ecc71' : (close < open ? '#e74c3c' : '#aaa');
+
+              document.getElementById("ohlcInfo").innerHTML =
+                `日期: ${date}　
+                開: <span style="color:${color}">${open.toFixed(4)}</span>　
+                高: <span style="color:${color}">${high.toFixed(4)}</span>　
+                低: <span style="color:${color}">${low.toFixed(4)}</span>　
+                收: <span style="color:${color}">${close.toFixed(4)}</span>`;
+
+              return null;
+            }
+
+          },
+          
+          
+
+          xaxis: {
+            type: "datetime",
+          },
+
+          yaxis: {
+            min: minY,
+            max: maxY,
+            tooltip: { enabled: true },
+            labels: {
+              formatter: function (val) {
+                return Number(val.toFixed(2)); // 或改成 parseFloat(val).toFixed(4)
+              },
+            },
+          },
+
+          stroke: { width: 1 },
+
+          markers: { size: 2 },
+
+          series: [
+            {
+              name: "K線圖",
+              type: "candlestick",
+              data: chartData,
+            },
+            ...extraSeries,
+          ],
+        };
+
+        chart = new ApexCharts(document.querySelector("#chart"), options);
+        chart.render();
+
+        console.log("✅ 查詢結果 sample：", data[0]);
+        console.log("✅ 選擇指標：", selectedIndicators);
+      }
+    </script>
+  </body>
+</html>

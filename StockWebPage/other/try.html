@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>股票分析平台 demo（API 版）</title>
+    <!-- 僅保留需要的第三方：ApexCharts -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <style>
+      :root {
+        --bg: #0b0f19;
+        --card: #121826;
+        --text: #e5e7eb;
+        --muted: #9aa4b2;
+        --accent: #22d3ee;
+        --border: #1f2937;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--bg); color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      }
+      header {
+        padding: 16px 20px; border-bottom: 1px solid var(--border);
+        display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;
+        position: sticky; top: 0; background: linear-gradient(180deg, rgba(11,15,25,.9), rgba(11,15,25,.7)); backdrop-filter: saturate(140%) blur(4px);
+        z-index: 10;
+      }
+      .brand { font-weight: 700; letter-spacing: .3px; color: var(--text); }
+      .search {
+        position: relative; display: flex; gap: 8px; align-items: center;
+        max-width: 560px; width: 100%; margin-left: auto;
+      }
+      .search input {
+        width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
+        background: var(--card); color: var(--text); outline: none;
+      }
+      .search ul {
+        position: absolute; top: 42px; left: 0; right: 0; list-style: none; margin: 6px 0 0; padding: 6px;
+        background: var(--card); border: 1px solid var(--border); border-radius: 10px; max-height: 320px; overflow: auto; display: none;
+      }
+      .search li { padding: 10px 8px; border-radius: 8px; cursor: pointer; }
+      .search li:hover { background: rgba(255,255,255,0.04); }
+      .muted { color: var(--muted); }
+      .container { padding: 16px; display: grid; gap: 16px; }
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 8px; }
+      .row { display: grid; gap: 16px; grid-template-columns: 1fr; }
+      @media (min-width: 1080px) { .row { grid-template-columns: 2.2fr 1fr; } }
+      .chart { height: 460px; }
+      .subchart { height: 180px; }
+      .toolbar { display: flex; gap: 8px; align-items: center; padding: 8px 10px 0; }
+      .toolbar select, .toolbar button {
+        background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; cursor: pointer;
+      }
+      .toolbar button.active { outline: 1px solid var(--accent); }
+    </style>
+    <script>
+      // 如果是密碼重設 callback（沿用你原邏輯）
+      if (location.hash.includes("access_token") && !location.pathname.endsWith("ResetPassword.html")) {
+        const target = "/StockWebPage/ResetPassword.html" + location.hash;
+        location.replace(target);
+      }
+    </script>
+  </head>
+  <body>
+    <header>
+      <div class="brand">StockBoard · API 直連 MySQL</div>
+      <div class="search">
+        <input id="searchInput" placeholder="輸入代號或名稱（例：AAPL、台積電）" autocomplete="off" />
+        <ul id="suggestList"></ul>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <div class="toolbar">
+          <div class="muted" id="title">—</div>
+          <div style="flex:1"></div>
+          <label class="muted">K 線區間：</label>
+          <select id="countSelect">
+            <option value="120">120</option>
+            <option value="180">180</option>
+            <option value="264" selected>264</option>
+            <option value="360">360</option>
+            <option value="500">500</option>
+          </select>
+          <button id="btnAuto" class="active">自動尺度</button>
+          <button id="btnTight">緊縮尺度</button>
+        </div>
+        <div id="kchart" class="chart"></div>
+        <div id="volchart" class="subchart"></div>
+      </section>
+      <section class="row">
+        <div class="card">
+          <h3 style="margin:8px 10px" class="muted">技術指標（MACD / KD / 均線）</h3>
+          <div id="indchart" class="subchart" style="height: 240px"></div>
+        </div>
+        <div class="card">
+          <h3 style="margin:8px 10px" class="muted">基本資訊</h3>
+          <div id="info" style="padding: 8px 10px; line-height: 1.8"></div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      // ====== 這裡開始：全面 API 化（無任何 Supabase 依賴） ======
+      const API_BASE = "http://localhost:8000/api"; // 依你的後端實際位址調整
+
+      // 工具：防抖
+      function debounce(fn, wait = 250) {
+        let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
+      }
+
+      // DOM
+      const $search = document.getElementById('searchInput');
+      const $suggest = document.getElementById('suggestList');
+      const $title = document.getElementById('title');
+      const $count = document.getElementById('countSelect');
+      const $btnAuto = document.getElementById('btnAuto');
+      const $btnTight = document.getElementById('btnTight');
+      let currentSymbol = 'AAPL';
+
+      // 狀態：Y 軸是否緊縮
+      let tightScale = false;
+
+      // ===== API 呼叫 =====
+      async function apiFetchStocks(symbol, count = 264) {
+        const url = `${API_BASE}/stocks?symbol=${encodeURIComponent(symbol)}&count=${count}`;
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(`stocks API error ${resp.status}`);
+        return resp.json(); // 期望為陣列：[{date, open, high, low, close, volume, ...}]
+      }
+
+      async function apiFetchSymbols(keyword = '', limit = 10) {
+        const u = new URL(`${API_BASE}/symbols`);
+        if (keyword) u.searchParams.set('keyword', keyword);
+        u.searchParams.set('limit', limit);
+        const resp = await fetch(u);
+        if (!resp.ok) throw new Error(`symbols API error ${resp.status}`);
+        return resp.json(); // { data: [...], error: null }
+      }
+
+      // ===== Suggestion（搜尋建議）渲染 =====
+      function renderSuggestions(data = [], error = null) {
+        if (error) { console.error(error); $suggest.style.display = 'none'; return; }
+        const rows = data || [];
+        if (!rows.length) { $suggest.style.display = 'none'; return; }
+        $suggest.innerHTML = rows.map(r => {
+          const name = r.name_zh || r.name_en || '';
+          const shortn = r.short_name_zh || r.short_name_en || '';
+          return `<li data-symbol="${r.symbol}"><b>${r.symbol}</b> <span class="muted">${name}${shortn ? ' · ' + shortn : ''}</span></li>`;
+        }).join('');
+        $suggest.style.display = 'block';
+      }
+
+      const doSuggest = debounce(async () => {
+        const kw = $search.value.trim();
+        try {
+          const result = await apiFetchSymbols(kw, 10);
+          renderSuggestions(result.data, result.error);
+        } catch (e) {
+          console.error(e);
+          $suggest.style.display = 'none';
+        }
+      }, 180);
+
+      $search.addEventListener('input', doSuggest);
+      $search.addEventListener('focus', async () => {
+        try {
+          const result = await apiFetchSymbols('', 10);
+          renderSuggestions(result.data, result.error);
+        } catch (e) { $suggest.style.display = 'none'; }
+      });
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.search')) $suggest.style.display = 'none';
+      });
+      $suggest.addEventListener('click', (e) => {
+        const li = e.target.closest('li');
+        if (!li) return;
+        const sym = li.getAttribute('data-symbol');
+        if (sym) {
+          currentSymbol = sym; $search.value = sym; $suggest.style.display = 'none';
+          loadAndRender(sym, parseInt($count.value, 10));
+        }
+      });
+
+      // ===== 圖表實體 =====
+      let kChart, volChart, indChart;
+
+      function initCharts() {
+        if (!kChart) {
+          kChart = new ApexCharts(document.querySelector('#kchart'), {
+            chart: { type: 'candlestick', height: '100%', foreColor: '#cbd5e1', background: 'transparent', toolbar: { show: false } },
+            grid: { borderColor: '#1f2937' },
+            xaxis: { type: 'datetime' },
+            yaxis: { tooltip: { enabled: true } },
+            plotOptions: { candlestick: { colors: { upward: '#10b981', downward: '#ef4444' } } },
+            series: [{ name: 'K', data: [] }],
+          });
+          kChart.render();
+        }
+        if (!volChart) {
+          volChart = new ApexCharts(document.querySelector('#volchart'), {
+            chart: { type: 'bar', height: '100%', foreColor: '#cbd5e1', background: 'transparent', toolbar: { show: false } },
+            grid: { borderColor: '#1f2937' },
+            xaxis: { type: 'datetime' },
+            yaxis: { labels: { formatter: (v) => formatVol(v) } },
+            series: [{ name: 'Volume', data: [] }],
+          });
+          volChart.render();
+        }
+        if (!indChart) {
+          indChart = new ApexCharts(document.querySelector('#indchart'), {
+            chart: { type: 'line', height: '100%', foreColor: '#cbd5e1', background: 'transparent', toolbar: { show: false } },
+            grid: { borderColor: '#1f2937' },
+            stroke: { width: [2,2,2,1,1,1] },
+            xaxis: { type: 'datetime' },
+            series: [
+              { name: 'Sma 5', data: [] },
+              { name: 'Sma 20', data: [] },
+              { name: 'Sma 60', data: [] },
+              { name: 'DIF', data: [] },
+              { name: 'DEA', data: [] },
+              { name: 'K', data: [] },
+            ],
+          });
+          indChart.render();
+        }
+      }
+
+      function formatVol(v) {
+        // 不加千分位逗號，避免你說的「前端把逗號當字串」問題
+        if (v >= 1e9) return (v/1e9).toFixed(2) + 'B';
+        if (v >= 1e6) return (v/1e6).toFixed(2) + 'M';
+        if (v >= 1e3) return (v/1e3).toFixed(2) + 'K';
+        return String(Math.round(v));
+      }
+
+      function computeTightRange(ohlc) {
+        // 取最近 N 根 K 線的 min/max，並上下各留 5% 空間
+        if (!ohlc.length) return null;
+        let lo = Infinity, hi = -Infinity;
+        for (const x of ohlc) {
+          const [ts, o,h,l,c] = x;
+          if (l < lo) lo = l; if (h > hi) hi = h;
+        }
+        if (!isFinite(lo) || !isFinite(hi)) return null;
+        const pad = (hi - lo) * 0.05;
+        return { min: lo - pad, max: hi + pad };
+      }
+
+      async function loadAndRender(symbol, count) {
+        $title.textContent = `${symbol} · 載入中…`;
+        try {
+          const rows = await apiFetchStocks(symbol, count);
+          if (!rows || !rows.length) {
+            $title.textContent = `${symbol} · 無資料`;
+            kChart.updateSeries([{ data: [] }]);
+            volChart.updateSeries([{ data: [] }]);
+            indChart.updateSeries([{ data: [], }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }]);
+            return;
+          }
+
+          // 轉成 ApexCharts 需要的格式
+          const ohlc = rows.map(r => [new Date(r.date).getTime(), r.open, r.high, r.low, r.close]);
+          const vol = rows.map(r => [new Date(r.date).getTime(), Number(r.volume || 0)]);
+
+          // 均線與指標（依後端欄位名稱而定，這裡假設用 AS 已經映射為前端名字）
+          const sma5 = rows.map(r => [new Date(r.date).getTime(), Number(r["Sma 5"]) || null]);
+          const sma20 = rows.map(r => [new Date(r.date).getTime(), Number(r["Sma 20"]) || null]);
+          const sma60 = rows.map(r => [new Date(r.date).getTime(), Number(r["Sma 60"]) || null]);
+          const dif = rows.map(r => [new Date(r.date).getTime(), Number(r["DIF"]) || null]);
+          const dea = rows.map(r => [new Date(r.date).getTime(), Number(r["DEA"]) || null]);
+          const k = rows.map(r => [new Date(r.date).getTime(), Number(r["k"]) || Number(r["K"]) || null]);
+
+          kChart.updateSeries([{ data: ohlc }]);
+          volChart.updateSeries([{ data: vol }]);
+          indChart.updateSeries([
+            { name: 'Sma 5', data: sma5 },
+            { name: 'Sma 20', data: sma20 },
+            { name: 'Sma 60', data: sma60 },
+            { name: 'DIF', data: dif },
+            { name: 'DEA', data: dea },
+            { name: 'K', data: k },
+          ]);
+
+          // Y 軸尺度
+          if (tightScale) {
+            const range = computeTightRange(ohlc);
+            if (range) kChart.updateOptions({ yaxis: { min: range.min, max: range.max } });
+          } else {
+            kChart.updateOptions({ yaxis: { min: undefined, max: undefined } });
+          }
+
+          $title.textContent = `${symbol} · ${rows[0].date} ~ ${rows[rows.length - 1].date}`;
+
+          // 右側基本資訊示意（可依實際需求替換）
+          const last = rows[rows.length - 1];
+          document.getElementById('info').innerHTML = `
+            <div>收盤：<b>${Number(last.close).toFixed(2)}</b></div>
+            <div>成交量：<b>${formatVol(Number(last.volume))}</b></div>
+            <div class="muted">資料筆數：${rows.length}</div>
+          `;
+        } catch (err) {
+          console.error(err);
+          $title.textContent = `${symbol} · 載入失敗`;
+        }
+      }
+
+      // 事件
+      $count.addEventListener('change', () => loadAndRender(currentSymbol, parseInt($count.value, 10)));
+      $btnAuto.addEventListener('click', () => { tightScale = false; $btnAuto.classList.add('active'); $btnTight.classList.remove('active'); loadAndRender(currentSymbol, parseInt($count.value, 10)); });
+      $btnTight.addEventListener('click', () => { tightScale = true; $btnTight.classList.add('active'); $btnAuto.classList.remove('active'); loadAndRender(currentSymbol, parseInt($count.value, 10)); });
+
+      // 初始化
+      initCharts();
+      loadAndRender(currentSymbol, parseInt($count.value, 10));
+    </script>
+  </body>
+</html>

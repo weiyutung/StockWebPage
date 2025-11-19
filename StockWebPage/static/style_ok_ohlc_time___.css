@@ -1,0 +1,525 @@
+#chartsWrap {
+  display: grid;
+  gap: 8px;
+}
+
+/* 1. 整體結構：改成上下排，main-content 置中 */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+#main-content {
+  width: 100%;
+  max-width: 1400px;
+  /* 可以改 1300 / 1500 看你喜歡 */
+  margin: 0 auto;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+#right-panel {
+  width: 25%;
+  padding: 20px;
+  background: #f9f9f9;
+  border-left: 1px solid #ccc;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.checkbox-group label {
+  display: block;
+  margin: 10px 0;
+  font-size: 16px;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 20px;
+}
+
+th,
+td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+}
+
+th {
+  background-color: #f2f2f2;
+}
+
+select,
+input[type="date"],
+input[type="text"],
+button {
+  font-size: 16px;
+  margin: 5px;
+  padding: 5px;
+}
+
+#chart {
+  max-width: 100%;
+  margin-top: 50px;
+}
+
+/* 5. 搜尋框改成放在工具列用 */
+.search-container {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  /* suggestions 會貼在這下面 */
+  margin: 0;
+}
+
+.search-container.hidden {
+  display: none;
+}
+
+
+#symbolInput {
+  width: 300px;
+  height: 40px;
+  font-size: 18px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  z-index: 1;
+  box-sizing: border-box;
+}
+
+#suggestions {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  /* 直接從左邊開始 */
+  width: 300px;
+  /* 跟輸入框同寬 */
+  background: #fff;
+  border: 1px solid #ccc;
+  border-top: none;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10;
+  box-sizing: border-box;
+}
+
+
+
+/* 2. 頂部工具列 */
+.top-bar {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+
+  background-color: #ffffff;
+  flex-wrap: wrap;
+  /* 螢幕窄時可以自動換行 */
+}
+
+/* 搜尋圖示按鈕 */
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: none;
+  background: #f2f2f2;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn:hover {
+  background: #e4e4e4;
+}
+
+/* 股票名稱 */
+.stock-name {
+  font-weight: bold;
+  font-size: 30px;
+  min-width: 80px;
+}
+
+/* 開高低收資訊 */
+.ohlc-info {
+  flex: 0 1 auto;
+  /* ★ 不要 flex:1；改成跟內容差不多寬 */
+  white-space: nowrap;
+  /* 不換行，整串 OHLC 從左到右 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 4px;
+  /* 收盤價 和 5天 中間留一點點距離 */
+}
+
+
+/* 共用次要按鈕：顯示區隔 / 控制面板 */
+.btn-secondary {
+  padding: 4px 10px;
+  font-size: 13px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background: #fafafa;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background: #f0f0f0;
+}
+
+.btn-secondary.active {
+  background: #d0ebff;
+  border-color: #4dabf7;
+}
+
+
+
+/* 控制面板區域（技術指標 + 條件判斷） */
+.control-panel {
+  display: none;
+  padding: 8px 12px;
+  background: #f9f9f9;
+
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.control-panel.open {
+  display: flex;
+}
+
+/* 左右兩欄 */
+.checkbox-column {
+  min-width: 160px;
+}
+
+.control-panel h3 {
+  margin: 4px 0 8px;
+  font-size: 14px;
+}
+
+
+/* 3. 圖表 + 控制面板：水平排列 */
+/* 左：圖表，右：控制面板（側欄） */
+.chart-row {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 8px;
+}
+
+.chart-area {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+
+/* 右側控制面板，預設隱藏（按按鈕才展開） */
+/* 右側控制面板：正常側欄，會擠壓圖，但不蓋住圖 */
+.control-panel-right {
+  width: 240px;
+  height: 520px;
+  /* 側欄寬度可以自己調 */
+  flex-shrink: 0;
+  margin-left: 16px;
+  /* 和圖之間留一點空隙 */
+
+  padding: 10px 12px;
+  box-sizing: border-box;
+
+  background: #ffffff;
+  /* ★ 白色背景 */
+  border-radius: 8px;
+  border: 1px solid #ddd;
+
+  display: none;
+  /* 預設關閉 */
+  overflow-y: auto;
+  /* 超出高度可以捲動 */
+}
+
+/* 展開時：用 flex 撐滿整高，排成上下兩區（技術指標 + 進階選項） */
+.control-panel-right.open {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 以下為控制面板的滾輪 */
+/* 整條 scrollbar 的寬度 */
+.control-panel-right::-webkit-scrollbar {
+  width: 16px;
+  /* 整條軌道寬度 */
+}
+
+/* 軌道（背景） */
+.control-panel-right::-webkit-scrollbar-track {
+  background: transparent;
+  /* 可以改成 #f5f5f5 看你喜歡 */
+}
+
+/* 中間的滑塊：做成圓角膠囊 */
+.control-panel-right::-webkit-scrollbar-thumb {
+  background: #d0d0d0;
+  border-radius: 999px;
+  border: 4px solid transparent;
+  /* 讓膠囊不要貼滿整個軌道 */
+  background-clip: padding-box;
+}
+
+/* hover 時滑塊顏色深一點 */
+.control-panel-right::-webkit-scrollbar-thumb:hover {
+  background: #b5b5b5;
+  background-clip: padding-box;
+}
+
+/* 上方三角形按鈕 */
+.control-panel-right::-webkit-scrollbar-button:single-button:vertical:decrement {
+  height: 16px;
+  background: #f0f0f0;
+  border-radius: 0 0 8px 8px;
+  border: none;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+  mask: none;
+  -webkit-mask: none;
+  position: relative;
+}
+
+/* 下方三角形按鈕 */
+.control-panel-right::-webkit-scrollbar-button:single-button:vertical:increment {
+  height: 16px;
+  background: #f0f0f0;
+  border-radius: 8px 8px 0 0;
+  border: none;
+  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+/* 用 before 畫出裡面的小三角形（向上） */
+.control-panel-right::-webkit-scrollbar-button:single-button:vertical:decrement::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  transform: translate(-50%, -50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 7px solid #c0c0c0;
+  /* 上方三角形 */
+}
+
+/* 下方小三角形（向下） */
+.control-panel-right::-webkit-scrollbar-button:single-button:vertical:increment::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  transform: translate(-50%, -50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid #c0c0c0;
+  /* 下方三角形 */
+}
+
+/* Firefox 的簡易樣式（沒辦法畫三角，但至少顏色/粗細一致） */
+.control-panel-right {
+  scrollbar-width: thin;
+  scrollbar-color: #b5b5b5 transparent;
+}
+
+/* 以上為控制面板的滾輪 */
+
+
+.control-section {
+  margin-bottom: 12px;
+}
+
+.control-section h3 {
+  margin: 4px 0 8px;
+  font-size: 14px;
+}
+
+/* 時間列容器 */
+.time-range-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* 每顆按鈕的間距，你已經調過可以保留 */
+  flex: 0 0 auto;
+  /* ★ 不要撐開，跟著 OHLC 後面排就好 */
+  white-space: nowrap;
+}
+
+/* 讓第一顆 btn-secondary 把後面的都推到最右邊 */
+.btn-secondary:first-of-type {
+  margin-left: auto;
+}
+
+/* 單個選項 */
+.time-range-item {
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.2s, color 0.2s;
+}
+
+/* 預設樣式 */
+.time-range-item:hover {
+  background-color: #f2f2f2;
+}
+
+/* 選中狀態 */
+.time-range-item.active {
+  background-color: #f0f0f0;
+  font-weight: bold;
+}
+
+/* 日曆圖案按鈕 */
+.calendar-btn {
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.calendar-btn:hover {
+  background-color: #f2f2f2;
+}
+
+.calendar-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: #333;
+}
+
+/* 自訂時間容器（初始隱藏） */
+#customDateRange {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+}
+
+#customDateRange input[type="date"] {
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+
+#customDateRange button {
+  padding: 4px 8px;
+  font-size: 14px;
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#customDateRange button:hover {
+  background-color: #1976d2;
+}
+
+h1,
+h2,
+h3 {
+  color: #333;
+}
+
+.menu-container {
+  position: absolute;
+  top: 10px;
+  left: 20px;
+  font-size: 24px;
+
+}
+
+.menu-icon {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dropdown {
+  display: none;
+  position: absolute;
+  left: 0;
+  /* 對齊 ☰ 的左邊 */
+  top: 30px;
+  background-color: #fff;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  min-width: 120px;
+}
+
+
+.dropdown a {
+  display: block;
+  padding: 10px 15px;
+  color: #333;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.dropdown a:hover {
+  background-color: #f2f2f2;
+}
+
+.apexcharts-annotation-label.annotation-vertical {
+  display: inline-block;
+  transform-origin: center;
+  transform: rotate(-90deg);
+  line-height: 1;
+}
+
+/* 4. K 線 + 成交量圖：等比例縮小 */
+#chartsWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  height: 300px;
+  /* ★ 整體高度：想更矮就改小，比如 360px */
+}
+
+#priceChart {
+  flex: 5 1 0;
+  /* 上面圖高度是下面的 5 倍 */
+  min-height: 0;
+}
+
+#volumeChart {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* 只作用在下方成交量圖容器 */
+#volumeChart .apexcharts-tooltip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  opacity: 1 !important;
+  /* 讓它仍掛著，互動才會正常 */
+  pointer-events: none !important;
+}
+
+#volumeChart .apexcharts-tooltip-title,
+#volumeChart .apexcharts-tooltip-series-group,
+#volumeChart .apexcharts-tooltip-marker {
+  display: none !important;
+  /* 沒內容、沒框框 */
+}
