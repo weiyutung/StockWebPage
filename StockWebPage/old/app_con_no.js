@@ -186,14 +186,14 @@ function applyRules() {
 
 // 2. 畫圖邏輯 (負責計算並更新圖表)
 function highlightConditions(rules) {
-  console.log(` [highlightConditions] 開始計算標註, 規則:`, rules);
+  console.log(`📉 [highlightConditions] 開始計算標註, 規則:`, rules);
 
   if (!window.stockData || window.stockData.length === 0) {
-    console.error(" [錯誤] stockData 是空的");
+    console.error("❌ [錯誤] stockData 是空的");
     return;
   }
   if (!window.tradingDates) {
-    console.error(" [錯誤] tradingDates 是空的");
+    console.error("❌ [錯誤] tradingDates 是空的");
     return;
   }
 
@@ -738,25 +738,10 @@ async function displayStockData(data, symbol) {
     const range = getCurrentXRange();
     let newSeries = [{ name: "K線圖", type: "candlestick", data: chartData }];
 
-    // 1. 判斷哪些右側指標被勾選
     const showMacd = checked.some((n) => indicatorGroups.macd.includes(n));
     const showKdj = checked.some((n) => indicatorGroups.kdj.includes(n));
     const showBias = checked.some((n) => indicatorGroups.bias.includes(n));
 
-    // 2. 計算右側多了幾個 Y 軸 (每個軸會佔用寬度，導致上圖往左縮)
-    let rightAxisCount = 0;
-    if (showMacd) rightAxisCount++;
-    if (showKdj) rightAxisCount++;
-    if (showBias) rightAxisCount++;
-
-    // 3. 動態計算下圖 (Volume) 需要的右邊距
-    // 基礎值 -25 (這是你原本設定的無軸時對齊值)
-    // 每個 Y 軸大約佔用 55px (這個數值可根據字體大小微調)
-    const axisWidth = 70;
-    const baseVolRightPad = -25;
-    const newVolRightPad = baseVolRightPad + rightAxisCount * axisWidth;
-
-    // 4. 準備數據 Series
     checked.forEach((name) => {
       const field = indicatorFieldMap[name];
       if (!field) return;
@@ -778,7 +763,6 @@ async function displayStockData(data, symbol) {
       });
     });
 
-    // 5. 更新上圖 (Price Chart)
     chart.updateSeries(newSeries, false);
     chart.updateOptions(
       {
@@ -792,25 +776,14 @@ async function displayStockData(data, symbol) {
       false,
       false
     );
-
-    // 6. ★ 更新下圖 (Volume Chart) 的 Padding 以對齊上圖
+    restoreXRange(range);
     ApexCharts.exec(
       "volumePane",
       "updateOptions",
-      {
-        grid: {
-          padding: {
-            left: 28, // 保持原本的左邊距
-            right: newVolRightPad, // 套用動態計算的右邊距
-          },
-        },
-        yaxis: makeVolumeYAxis(),
-      },
+      { yaxis: makeVolumeYAxis() },
       false,
       false
     );
-
-    restoreXRange(range);
   };
 
   document.querySelectorAll(".indicator-check").forEach((checkbox) => {
@@ -1423,6 +1396,7 @@ document.addEventListener("DOMContentLoaded", () => {
       maxDate: "today",
       allowInput: false,
 
+      // 每次打開日曆的時候，重新計算位置，讓日曆水平置中在目前這顆 input 下方
       onOpen: function (selectedDates, dateStr, instance) {
         requestAnimationFrame(() => {
           const cal = instance.calendarContainer;
@@ -1430,27 +1404,26 @@ document.addEventListener("DOMContentLoaded", () => {
           if (!cal || !input) return;
 
           const inputRect = input.getBoundingClientRect();
-          const calRect = cal.getBoundingClientRect();
+
+          // 原始寬度（未縮放）
+          const rawWidth = cal.offsetWidth;
+          // 實際畫面上的寬度 = 原始寬度 * scale
+          const visualWidth = rawWidth * CAL_SCALE;
+
+          const viewportWidth = window.innerWidth;
           const margin = 8;
 
-          let left;
+          // 目標：日曆的中心 = input 的中心
+          let left =
+            inputRect.left + inputRect.width / 2 - visualWidth / 2 + 80;
 
-          if (input.id === "customStart") {
-            // 🔹開始日期：左邊對齊 input
-            left = inputRect.left;
-          } else {
-            // 🔹結束日期：右邊對齊 input
-            left = inputRect.right - calRect.width;
-          }
-
-          // 防止超出畫面
-          if (left < margin) left = margin;
-          if (left + calRect.width > window.innerWidth - margin) {
-            left = window.innerWidth - calRect.width - margin;
-          }
+          // 不要超出畫面左右邊界
+          left = Math.max(
+            margin,
+            Math.min(left, viewportWidth - visualWidth - margin)
+          );
 
           cal.style.left = left + "px";
-          cal.style.top = inputRect.bottom + 6 + "px"; // 接在 input 下方一點
         });
       },
     };
@@ -1647,28 +1620,10 @@ document.addEventListener("DOMContentLoaded", () => {
       // 切換按鈕激活狀態 (CSS class: active)
       controlBtn.classList.toggle("active", isOpen);
     };
-    console.log(" 分析面板按鈕已重新綁定成功");
+    console.log("✅ 分析面板按鈕已重新綁定成功");
   } else {
     console.error(
-      " 找不到分析面板按鈕 (ID: controlPanelToggle) 或面板 (ID: controlPanel)"
+      "❌ 找不到分析面板按鈕 (ID: controlPanelToggle) 或面板 (ID: controlPanel)"
     );
   }
 });
-
-function resetAllSelections() {
-  // 1. 將所有 checkbox (技術指標 + 條件判斷) 的勾選狀態拿掉
-  document.querySelectorAll(".indicator-check, .rule-check").forEach((cb) => {
-    cb.checked = false;
-  });
-
-  // 2. 更新技術指標線圖 (這會把線清掉)
-  if (typeof window.updateIndicatorsFromChecked === "function") {
-    window.updateIndicatorsFromChecked();
-  }
-
-  // 3. 更新條件判斷標註 (這會把倒三角形清掉)
-  // 我們直接呼叫 applyRules，它會去讀現在的 checkbox (都是空的)，進而清除圖表
-  if (typeof applyRules === "function") {
-    applyRules();
-  }
-}

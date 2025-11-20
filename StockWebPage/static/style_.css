@@ -10,11 +10,11 @@ h3 {
 }
 
 .menu-container {
-  position: fixed;       /* 🔹改成固定在畫面上，不跟著版面擠 */
+  position: fixed; /* 🔹改成固定在畫面上，不跟著版面擠 */
   top: 10px;
   left: 20px;
   font-size: 24px;
-  z-index: 3000;        /* 比搜尋框、圖表都高 */
+  z-index: 3000; /* 比搜尋框、圖表都高 */
 }
 
 .menu-icon {
@@ -25,18 +25,16 @@ h3 {
 
 .dropdown {
   display: none;
-  position: absolute;    /* 仍然相對於 .menu-icon */
-  left: 0;               /* 如果你要從 ☰ 的左邊對齊往下展開 */
-  top: 32px;             /* 往下 32px，避免貼太緊 */
+  position: absolute; /* 仍然相對於 .menu-icon */
+  left: 0; /* 如果你要從 ☰ 的左邊對齊往下展開 */
+  top: 32px; /* 往下 32px，避免貼太緊 */
   background-color: #fff;
   box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
   border: 1px solid #ddd;
   border-radius: 4px;
   min-width: 505x;
-  z-index: 3001;         /* 🔹確定比搜尋膠囊還高 */
+  z-index: 3001; /* 🔹確定比搜尋膠囊還高 */
 }
-
-
 
 .dropdown a {
   display: block;
@@ -113,9 +111,6 @@ button {
   margin-top: 50px;
 }
 
-
-
-
 /* 2. 頂部工具列 */
 .top-bar {
   margin-top: 20px;
@@ -125,18 +120,18 @@ button {
   padding: 8px 12px;
 
   background-color: #ffffff;
-  flex-wrap: nowrap;        /* 🔹不要自動換行，避免按鈕掉到下一排 */
+  flex-wrap: nowrap; /* 🔹不要自動換行，避免按鈕掉到下一排 */
 }
 
 /* 搜尋圖示按鈕 */
 /* 搜尋收起時那顆小圓按鈕 */
 /* 左上角搜尋按鈕（收起狀態） */
 .icon-btn {
-  width: 45px;                  /* 🔹跟膠囊高度一致 */
+  width: 45px; /* 🔹跟膠囊高度一致 */
   height: 36px;
   border-radius: 999px;
   border: none;
-  background: transparent;      /* 🔹完全透明，沒有底色 */
+  background: transparent; /* 🔹完全透明，沒有底色 */
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -158,7 +153,6 @@ button {
   transition: stroke 0.15s ease;
 }
 
-
 /* 5. 搜尋框改成放在工具列用 */
 /* 搜尋整體容器（被 searchToggle 開關） */
 .search-container {
@@ -177,13 +171,12 @@ button {
   background: #f2f2f2;
   color: #333;
   border-radius: 999px;
-  padding: 0 14px;          /* 上下改成 0，由 height 控制高度 */
-  height: 36px;             /* 🔹統一高度 */
+  padding: 0 14px; /* 上下改成 0，由 height 控制高度 */
+  height: 36px; /* 🔹統一高度 */
   min-width: 260px;
   max-width: 360px;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
 }
-
 
 /* 左邊的放大鏡 icon */
 .search-pill-icon {
@@ -191,8 +184,7 @@ button {
   align-items: center;
   justify-content: center;
   margin-right: 8px;
-  cursor: pointer;          /* ★ 變成可點的樣式 */
-
+  cursor: pointer; /* ★ 變成可點的樣式 */
 }
 
 .search-pill-icon svg {
@@ -244,13 +236,12 @@ button {
   background: #f5f5f5;
 }
 
-
 /* 左邊：搜尋 + 股票名稱 + OHLC */
 .top-left {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: 0;             /* 允許裡面文字被縮短（ellipsis） */
+  min-width: 0; /* 允許裡面文字被縮短（ellipsis） */
 }
 
 /* 股票名稱 */
@@ -311,11 +302,11 @@ button {
 
 /* 右邊：時間列 + 日曆 + 顯示區隔 + 控制面板 */
 .top-right {
-  margin-left: auto;        /* 🔹整組靠右 */
+  margin-left: auto; /* 🔹整組靠右 */
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;           /* 不要被擠縮到下一排 */
+  flex-shrink: 0; /* 不要被擠縮到下一排 */
 }
 
 /* 時間列容器 */
@@ -326,8 +317,8 @@ button {
   align-items: center;
   padding: 4px 6px;
   border-radius: 999px;
-  background-color: #ffffff;        /* 🔹外層改白底 */
-  border: 1px solid #e0e0e0;        /* 輕微的外框 */
+  background-color: #ffffff; /* 🔹外層改白底 */
+  border: 1px solid #e0e0e0; /* 輕微的外框 */
   gap: 2px;
   font-size: 13px;
 }
@@ -337,8 +328,8 @@ button {
   cursor: pointer;
   padding: 3px 10px;
   border-radius: 999px;
-  border: 1px solid #ffffff;        /* 🔹邊框顏色 = 白色，跟底色融在一起 */
-  background-color: #ffffff;        /* 跟 time-range-bar 一樣白 */
+  border: 1px solid #ffffff; /* 🔹邊框顏色 = 白色，跟底色融在一起 */
+  background-color: #ffffff; /* 跟 time-range-bar 一樣白 */
   color: #555;
   transition: background 0.15s ease, color 0.15s ease;
 }
@@ -350,8 +341,8 @@ button {
 
 /* 選中的：不填色，只用藍色字體表示 */
 .time-range-item.active {
-  background-color: #ffffff;        /* 保持白底 */
-  color: #5956f7;                   /* 🔹藍字 */
+  background-color: #ffffff; /* 保持白底 */
+  color: #5956f7; /* 🔹藍字 */
   font-weight: 600;
 }
 
@@ -367,7 +358,6 @@ button {
   align-items: center;
   justify-content: center;
   margin-left: 4px;
-
 }
 
 .calendar-btn:hover {
@@ -380,7 +370,6 @@ button {
   fill: #555;
 }
 
-
 /* 共用次要按鈕：顯示區隔 / 控制面板 */
 /* 顯示區隔 / 控制面板 等小按鈕 → pill，跟時間列等高 */
 .btn-secondary {
@@ -388,13 +377,13 @@ button {
   align-items: center;
   justify-content: center;
 
-  height: 32px;                  /* 🔹跟時間膠囊視覺差不多高 */
-  padding: 0 12px;               /* 上下靠 height 控制，左右用 padding */
+  height: 32px; /* 🔹跟時間膠囊視覺差不多高 */
+  padding: 0 12px; /* 上下靠 height 控制，左右用 padding */
   font-size: 13px;
 
   border-radius: 999px;
   border: 1px solid #ddd;
-  background-color: #ffffff;  
+  background-color: #ffffff;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
@@ -407,14 +396,10 @@ button {
   color: #5956f7;
 }
 
-
 /* 讓「顯示區隔」這顆開始往右推，自己 + 後面的按鈕會靠右 */
 #togglePeriodsBtn {
   margin-left: auto;
 }
-
-
-
 
 /* 控制面板區域（技術指標 + 條件判斷） */
 .control-panel {
@@ -440,7 +425,6 @@ button {
   font-size: 14px;
 }
 
-
 /* 3. 圖表 + 控制面板：水平排列 */
 /* 左：圖表，右：控制面板（側欄） */
 .chart-row {
@@ -453,7 +437,6 @@ button {
   flex: 1 1 auto;
   min-width: 0;
 }
-
 
 /* 右側控制面板，預設隱藏（按按鈕才展開） */
 .control-panel-right {
@@ -572,7 +555,6 @@ button {
 
 /* 以上為控制面板的滾輪 */
 
-
 .control-section {
   margin-bottom: 12px;
 }
@@ -581,8 +563,6 @@ button {
   margin: 4px 0 8px;
   font-size: 14px;
 }
-
-
 
 .apexcharts-annotation-label.annotation-vertical {
   display: inline-block;
@@ -633,14 +613,14 @@ button {
 /* 懸浮式日期選擇卡片（顯示時由 JS 控制 display / 位置） */
 /* === 自訂日期卡片 === */
 #customDateRange {
-  display: none;              /* JS 會切換成 flex */
-  position: fixed;            /* 由 toggleCustomDate 定位 */
+  display: none; /* JS 會切換成 flex */
+  position: fixed; /* 由 toggleCustomDate 定位 */
   flex-direction: column;
   gap: 12px;
   padding: 12px 16px;
   box-sizing: border-box;
 
-  min-width: 260px;           /* 調寬一點避免內容超出 */
+  min-width: 260px; /* 調寬一點避免內容超出 */
   max-width: 320px;
 }
 
@@ -650,7 +630,6 @@ button {
   font-weight: 600;
   color: #333;
 }
-
 
 /* 日期那一行：靠左排，間距保留 */
 .custom-date-row {
@@ -662,10 +641,10 @@ button {
 
 /* 兩個輸入框 */
 .date-input {
-  flex: 0 0 auto;      /* 不要再撐滿整行 */
-  width: 105px;        /* 膠囊長度，想要再短就改小一點 */
+  flex: 0 0 auto; /* 不要再撐滿整行 */
+  width: 105px; /* 膠囊長度，想要再短就改小一點 */
   min-width: 0;
-  padding: 6px 10px;   /* 稍微矮一點，看起來更精緻 */
+  padding: 6px 10px; /* 稍微矮一點，看起來更精緻 */
   border-radius: 999px;
   border: 1px solid #d0d5dd;
   font-size: 13px;
@@ -705,10 +684,8 @@ button {
 
 .date-submit:hover {
   background: #5956f7;
-  color:#ffffff;
+  color: #ffffff;
 }
-
-
 
 /* === 通用的圓角風格 === */
 :root {
@@ -764,8 +741,8 @@ button {
 
 /* 🔹整個 flatpickr 日曆等比例縮小 */
 .flatpickr-calendar {
-  transform: scale(0.85);       /* 想再小可以 0.8 / 0.75 */
-  transform-origin: top left;   /* 以左上角為基準縮放 */
+  transform: scale(0.85); /* 想再小可以 0.8 / 0.75 */
+  transform-origin: top left; /* 以左上角為基準縮放 */
 }
 
 /* 🔹關掉 flatpickr 預設開啟動畫，避免「先大再小」的感覺 */
@@ -775,5 +752,137 @@ button {
   transition: none !important;
 }
 
+/* === 進階條件 Builder === */
 
+.rule-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+}
 
+.rule-palette {
+  margin-bottom: 4px;
+}
+
+.palette-title {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.palette-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rule-chip {
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid #ddd;
+  background: #f7f7f7;
+  cursor: grab;
+  user-select: none;
+}
+
+.rule-chip:active {
+  cursor: grabbing;
+}
+
+.rule-sentences {
+  border-top: 1px dashed #ddd;
+  padding-top: 6px;
+}
+
+.rule-sentences-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+#conditionRowsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+/* 單一條件句的一行 */
+.rule-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+/* 左右兩個 drop slot */
+.drop-slot {
+  flex: 0 0 80px;
+  padding: 4px 6px;
+  border-radius: 999px;
+  border: 1px dashed #bbb;
+  background: #fafafa;
+  color: #999;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drop-slot.filled {
+  border-style: solid;
+  border-color: #5956f7;
+  background: #f0f2ff;
+  color: #333;
+}
+
+.drop-slot.drag-over {
+  border-color: #000;
+  background: #eef3ff;
+}
+
+/* 運算子選單 */
+.rule-row .op-select {
+  border-radius: 999px;
+  border: 1px solid #ccc;
+  padding: 3px 6px;
+  font-size: 12px;
+}
+
+/* 數值輸入框（右邊可填數字） */
+.rule-row .value-input {
+  width: 80px;
+  border-radius: 999px;
+  border: 1px solid #ccc;
+  padding: 3px 6px;
+  font-size: 12px;
+}
+
+/* 刪除條件的叉叉 */
+.delete-row-btn {
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.rule-logic-row,
+.rule-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+#globalLogic {
+  border-radius: 999px;
+  border: 1px solid #ccc;
+  padding: 3px 6px;
+  font-size: 12px;
+}

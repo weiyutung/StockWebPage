@@ -1,8 +1,4 @@
-// ===== 6 鎖住用滾輪在下方圖放大
-//         日期全部對齊
-//         技術線跟條件判斷跟時間區隔 都會出現啦(待優化) =====
-// ===== 問題: 優化所有 =====
-console.log("app6");
+console.log("app_new");
 
 // 後端 FastAPI 反向代理的前綴；用同源更簡單
 const API_BASE = "/api";
@@ -1639,7 +1635,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // 使用 onclick 強制覆蓋之前的設定，確保一定有效
     controlBtn.onclick = (e) => {
       e.preventDefault(); // 防止任何預設行為
-      console.log("分析面板按鈕被點擊！"); // Debug 訊息
 
       // 切換面板顯示狀態 (CSS class: open)
       const isOpen = controlPanel.classList.toggle("open");
@@ -1647,7 +1642,6 @@ document.addEventListener("DOMContentLoaded", () => {
       // 切換按鈕激活狀態 (CSS class: active)
       controlBtn.classList.toggle("active", isOpen);
     };
-    console.log(" 分析面板按鈕已重新綁定成功");
   } else {
     console.error(
       " 找不到分析面板按鈕 (ID: controlPanelToggle) 或面板 (ID: controlPanel)"
