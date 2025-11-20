@@ -1,0 +1,260 @@
+#chartsWrap {
+  display: grid;
+  gap: 8px;
+}
+body {
+  display: flex;
+  flex-direction: row;
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+#main-content {
+  width: 75%;
+  padding: 20px;
+  box-sizing: border-box;
+}
+#right-panel {
+  width: 25%;
+  padding: 20px;
+  background: #f9f9f9;
+  border-left: 1px solid #ccc;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+.checkbox-group label {
+  display: block;
+  margin: 10px 0;
+  font-size: 16px;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 20px;
+}
+th,
+td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+}
+th {
+  background-color: #f2f2f2;
+}
+select,
+input[type="date"],
+input[type="text"],
+button {
+  font-size: 16px;
+  margin: 5px;
+  padding: 5px;
+}
+#chart {
+  max-width: 100%;
+  margin-top: 50px;
+}
+
+/* 搜尋框容器置中 */
+.search-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* 水平置中 */
+  margin-top: 10px;
+  margin-bottom: 20px;
+  position: relative; /* 下拉列表的定位參考 */
+}
+/* label 美化 */
+.search-container label {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+#symbolInput {
+  width: 300px;
+  height: 40px;
+  font-size: 18px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  z-index: 1;
+  box-sizing: border-box; /* 確保 padding 不影響寬度 */
+}
+
+#suggestions {
+  display: none; /* 預設隱藏 */
+  position: absolute;
+  top: 100%; /* 緊貼輸入框下方 */
+  left: 50%; /* 先移到容器中間 */
+  transform: translateX(-50%); /* 再向左平移 50% 寬度，讓左右居中對齊輸入框 */
+  width: 300px; /* 和輸入框同寬 */
+  background: #fff;
+  border: 1px solid #ccc;
+  border-top: none;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10;
+  box-sizing: border-box;
+}
+
+/* 時間列容器 */
+.time-range-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 15px;
+  font-family: Arial, sans-serif;
+}
+
+/* 單個選項 */
+.time-range-item {
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s, color 0.2s;
+}
+
+/* 預設樣式 */
+.time-range-item:hover {
+  background-color: #f2f2f2;
+}
+
+/* 選中狀態 */
+.time-range-item.active {
+  background-color: #f0f0f0;
+  font-weight: bold;
+}
+
+/* 日曆圖案按鈕 */
+.calendar-btn {
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.calendar-btn:hover {
+  background-color: #f2f2f2;
+}
+
+.calendar-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: #333;
+}
+
+/* 自訂時間容器（初始隱藏） */
+#customDateRange {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+}
+
+#customDateRange input[type="date"] {
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+
+#customDateRange button {
+  padding: 4px 8px;
+  font-size: 14px;
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#customDateRange button:hover {
+  background-color: #1976d2;
+}
+h1,
+h2,
+h3 {
+  color: #333;
+}
+
+.menu-container {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  font-size: 24px;
+  z-index: 999;
+}
+
+.menu-icon {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dropdown {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 30px;
+  background-color: #fff;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  min-width: 120px;
+}
+
+.dropdown a {
+  display: block;
+  padding: 10px 15px;
+  color: #333;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.dropdown a:hover {
+  background-color: #f2f2f2;
+}
+
+.apexcharts-annotation-label.annotation-vertical {
+  display: inline-block;
+  transform-origin: center;
+  transform: rotate(-90deg);
+  line-height: 1;
+}
+
+/* 讓兩張圖直向堆疊，不要再用 fr 分配空間 */
+#chartsWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0; /* 兩張圖間距，想更緊可改 0~4 */
+  height: 500px; /* 你要的總高度，想更高就加大 */
+}
+
+/* 上面：價格 + 技術線（約 4/5 高度） */
+#priceChart {
+  flex: 5 1 0;
+  min-height: 0;
+}
+
+/* 下面：成交量（約 1/5 高度） */
+#volumeChart {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* 只作用在下方成交量圖容器 */
+#volumeChart .apexcharts-tooltip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  opacity: 1 !important;          /* 讓它仍掛著，互動才會正常 */
+  pointer-events: none !important;
+}
+#volumeChart .apexcharts-tooltip-title,
+#volumeChart .apexcharts-tooltip-series-group,
+#volumeChart .apexcharts-tooltip-marker {
+  display: none !important;       /* 沒內容、沒框框 */
+}
+

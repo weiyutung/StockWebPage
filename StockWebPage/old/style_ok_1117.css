@@ -125,7 +125,8 @@ button {
   padding: 8px 12px;
 
   background-color: #ffffff;
-  flex-wrap: nowrap;        /* 🔹不要自動換行，避免按鈕掉到下一排 */
+  flex-wrap: wrap;
+  /* 螢幕窄時可以自動換行 */
 }
 
 /* 搜尋圖示按鈕 */
@@ -160,6 +161,7 @@ button {
 
 
 /* 5. 搜尋框改成放在工具列用 */
+/* 搜尋整體容器（被 searchToggle 開關） */
 /* 搜尋整體容器（被 searchToggle 開關） */
 .search-container {
   position: relative;
@@ -245,13 +247,6 @@ button {
 }
 
 
-/* 左邊：搜尋 + 股票名稱 + OHLC */
-.top-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;             /* 允許裡面文字被縮短（ellipsis） */
-}
 
 /* 股票名稱 */
 .stock-name {
@@ -260,160 +255,42 @@ button {
   min-width: 80px;
 }
 
-/* 以下為ohlc */
 /* 開高低收資訊 */
 .ohlc-info {
   flex: 0 1 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: #f5f5f7;
-
-  font-size: 14px;
-  color: #444;
+  /* ★ 不要 flex:1；改成跟內容差不多寬 */
   white-space: nowrap;
+  /* 不換行，整串 OHLC 從左到右 */
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* 每一個「開 231.48」的小組 */
-.ohlc-item {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-}
-
-/* 「開 / 高 / 低 / 收」的小標 */
-.ohlc-label {
-  font-size: 12px;
-  color: #888;
-  letter-spacing: 1px;
-}
-
-/* 數字本體，使用等寬數字比較整齊 */
-.ohlc-value {
-  font-variant-numeric: tabular-nums;
-}
-
-/* 上漲（你是紅漲綠跌，所以 up = 紅） */
-.ohlc-value.up {
-  color: #e74c3c;
-}
-
-/* 下跌 */
-.ohlc-value.down {
-  color: #2ecc71;
-}
-/* 以上為ohlc */
-
-/* 右邊：時間列 + 日曆 + 顯示區隔 + 控制面板 */
-.top-right {
-  margin-left: auto;        /* 🔹整組靠右 */
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;           /* 不要被擠縮到下一排 */
-}
-
-/* 時間列容器 */
-/* 整個時間區間條：像一條小膠囊條 */
-/* 整個時間區間條：外層膠囊 */
-.time-range-bar {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 6px;
-  border-radius: 999px;
-  background-color: #ffffff;        /* 🔹外層改白底 */
-  border: 1px solid #e0e0e0;        /* 輕微的外框 */
-  gap: 2px;
-  font-size: 13px;
-}
-
-/* 單個時間選項：預設看起來「沒有框」，只是一段字 */
-.time-range-item {
-  cursor: pointer;
-  padding: 3px 10px;
-  border-radius: 999px;
-  border: 1px solid #ffffff;        /* 🔹邊框顏色 = 白色，跟底色融在一起 */
-  background-color: #ffffff;        /* 跟 time-range-bar 一樣白 */
-  color: #555;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-/* hover 才出現淺灰底 */
-.time-range-item:hover {
-  background-color: #f5f5f5;
-}
-
-/* 選中的：不填色，只用藍色字體表示 */
-.time-range-item.active {
-  background-color: #ffffff;        /* 保持白底 */
-  color: #5956f7;                   /* 🔹藍字 */
-  font-weight: 600;
-}
-
-/* 日曆按鈕：小圓 pill 貼在右側 */
-.calendar-btn {
-  cursor: pointer;
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
-  border: none;
-  background-color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: 4px;
-
-}
-
-.calendar-btn:hover {
-  background-color: #f5f5f5;
-}
-
-.calendar-btn svg {
-  width: 15px;
-  height: 15px;
-  fill: #555;
+  margin-right: 4px;
+  /* 收盤價 和 5天 中間留一點點距離 */
 }
 
 
 /* 共用次要按鈕：顯示區隔 / 控制面板 */
-/* 顯示區隔 / 控制面板 等小按鈕 → pill，跟時間列等高 */
 .btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  height: 32px;                  /* 🔹跟時間膠囊視覺差不多高 */
-  padding: 0 12px;               /* 上下靠 height 控制，左右用 padding */
+  padding: 4px 10px;
   font-size: 13px;
-
-  border-radius: 999px;
-  border: 1px solid #ddd;
-  background-color: #ffffff;  
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background: #fafafa;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .btn-secondary:hover {
-  background: #f5f5f5;
+  background: #f0f0f0;
 }
 
 .btn-secondary.active {
-  color: #5956f7;
+  background: #d0ebff;
+  border-color: #4dabf7;
 }
-
 
 /* 讓「顯示區隔」這顆開始往右推，自己 + 後面的按鈕會靠右 */
 #togglePeriodsBtn {
   margin-left: auto;
 }
-
-
 
 
 /* 控制面板區域（技術指標 + 條件判斷） */
@@ -582,6 +459,66 @@ button {
   font-size: 14px;
 }
 
+/* 時間列容器 */
+.time-range-bar {
+  display: flex;
+  gap: 4px;
+  /* 你現在用多少就填多少，順便縮緊一點也 OK */
+  align-items: center;
+  font-size: 15px;
+  font-family: Arial, sans-serif;
+  position: relative;
+  /* ★ 讓下面的 #customDateRange 可以貼在這一條附近 */
+}
+
+
+
+
+/* 單個選項 */
+.time-range-item {
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.2s, color 0.2s;
+}
+
+/* 預設樣式 */
+.time-range-item:hover {
+  background-color: #f2f2f2;
+}
+
+/* 選中狀態 */
+.time-range-item.active {
+  background-color: #f0f0f0;
+  font-weight: bold;
+}
+
+/* 日曆圖案按鈕 */
+.calendar-btn {
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.calendar-btn:hover {
+  background-color: #f2f2f2;
+}
+
+.calendar-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: #333;
+}
+
+
+
+
+
+
 
 
 .apexcharts-annotation-label.annotation-vertical {
@@ -631,149 +568,66 @@ button {
 
 /* 以下為自訂時間容器（初始隱藏） */
 /* 懸浮式日期選擇卡片（顯示時由 JS 控制 display / 位置） */
-/* === 自訂日期卡片 === */
 #customDateRange {
-  display: none;              /* JS 會切換成 flex */
-  position: fixed;            /* 由 toggleCustomDate 定位 */
-  flex-direction: column;
-  gap: 12px;
-  padding: 12px 16px;
-  box-sizing: border-box;
-
-  min-width: 260px;           /* 調寬一點避免內容超出 */
-  max-width: 320px;
+  display: none;          /* 預設隱藏，JS 會改成 flex */
+  flex-direction: column; /* 🔹整個卡片內是上下排列 */
+  gap: 6px;               /* 每一行之間的間距 */
 }
 
-/* 標題：自訂時間區間 */
-.custom-date-header {
-  font-size: 13px;
-  font-weight: 600;
-  color: #333;
-}
-
-
-/* 日期那一行：靠左排，間距保留 */
-.custom-date-row {
+/* 每一行（起：／迄：） */
+#customDateRange .date-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  justify-content: flex-start;
+  gap: 6px;
 }
 
-/* 兩個輸入框 */
-.date-input {
-  flex: 0 0 auto;      /* 不要再撐滿整行 */
-  width: 105px;        /* 膠囊長度，想要再短就改小一點 */
-  min-width: 0;
-  padding: 6px 10px;   /* 稍微矮一點，看起來更精緻 */
-  border-radius: 999px;
-  border: 1px solid #d0d5dd;
-  font-size: 13px;
-  background-color: #fff;
-  cursor: pointer;
+/* 起：／迄：的 label 寬度 */
+#customDateRange .date-label {
+  min-width: 24px;
 }
 
-.date-input:focus {
-  outline: none;
-  border-color: #5956f7;
-  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
-}
-
-/* 中間的 ~ 符號 */
-.date-separator {
-  font-size: 12px;
-  color: #999;
-}
-
-/* 查詢按鈕容器：放在右下角 */
-.custom-date-footer {
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* 查詢按鈕：小膠囊 */
-.date-submit {
-  padding: 6px 16px;
-  font-size: 13px;
-  border-radius: 999px;
-  border: none;
-  background: #ebe9e9;
-  color: #0e0d0d;
-  cursor: pointer;
-  width: 245px;
-}
-
-.date-submit:hover {
-  background: #5956f7;
-  color:#ffffff;
-}
-
-
-
-/* === 通用的圓角風格 === */
-:root {
-  --radius-pill: 999px;
-  --radius-card: 12px;
-
-  --border-soft: 1px solid #ddd;
-  --shadow-soft: 0 3px 10px rgba(0, 0, 0, 0.12);
-  --bg-card: #ffffff;
-  --bg-soft: #f5f5f5;
-}
-
-/* 大框：右側控制面板、自訂日期、登入 dropdown、建議列表… */
-.round-card {
-  border-radius: var(--radius-card);
-  border: var(--border-soft);
-  background: var(--bg-card);
-  box-shadow: var(--shadow-soft);
-}
-
-/* 小框：按鈕 / chip / 時間區間 */
-.round-chip {
-  border-radius: var(--radius-pill);
-  background: var(--bg-soft);
-  border: 1px solid #ddd;
-}
-
-/* 輸入類控件：統一成偏圓（跟搜尋膠囊感覺接近） */
-input[type="text"],
-input[type="date"],
-select {
-  border-radius: 999px;
+/* 美化裡面的 input / button（你原本那段保留） */
+#customDateRange input[type="date"] {
+  padding: 4px 6px;
+  border-radius: 4px;
   border: 1px solid #ccc;
-  padding: 6px 10px;
-  box-sizing: border-box;
+  font-size: 14px;
 }
 
-/* 小按鈕統一圓弧 */
-button {
-  border-radius: 999px;
+#customDateRange button {
+  padding: 4px 8px;
+  font-size: 14px;
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
-/* Dropdown / 建議列表 / 自訂日期懸浮框：全部卡片風格 */
-#customDateRange,
-#suggestions,
-.dropdown,
-#right-panel {
-  border-radius: var(--radius-card);
-  border: var(--border-soft);
-  background: var(--bg-card);
-  box-shadow: var(--shadow-soft);
+#customDateRange button:hover {
+  background-color: #1976d2;
+}
+/* 以上為自訂時間容器（初始隱藏） */
+
+
+/* 美化裡面的 input / button */
+#customDateRange input[type="date"] {
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-size: 14px;
 }
 
-/* 🔹整個 flatpickr 日曆等比例縮小 */
-.flatpickr-calendar {
-  transform: scale(0.85);       /* 想再小可以 0.8 / 0.75 */
-  transform-origin: top left;   /* 以左上角為基準縮放 */
+#customDateRange button {
+  padding: 4px 8px;
+  font-size: 14px;
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
-/* 🔹關掉 flatpickr 預設開啟動畫，避免「先大再小」的感覺 */
-.flatpickr-calendar.animate,
-.flatpickr-calendar.animate.open {
-  animation: none !important;
-  transition: none !important;
+#customDateRange button:hover {
+  background-color: #1976d2;
 }
-
-
-

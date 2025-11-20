@@ -169,10 +169,6 @@
               </button>
             </div>
           </div>
-
-
-
-
           <!-- 7. 控制面板按鈕 -->
           <button id="controlPanelToggle" class="btn-secondary">
             分析面板
@@ -209,7 +205,7 @@
           <div class="control-section">
             
             <h3>顯示技術線</h3>
-            <div class="control-section" style="margin-bottom: 10px;">
+              <div class="control-section" style="margin-bottom: 10px;">
                 <button class="btn-secondary" style="width: 100%; color: #c0392b; border-color: #e74c3c;" onclick="resetAllSelections()">
                   清除所有選項
                 </button>
@@ -275,57 +271,129 @@
             </div>
           </div>
 
-          <!-- 下：進階選項（條件判斷） -->
+
+          <!-- 下：進階選項（拖曳式條件判斷） -->
           <div class="control-section">
-            <h3>條件判斷</h3>
-            <div class="checkbox-group">
-              <!-- 同樣，把原本 rule-check 全部搬過來 -->
-              <label
-                ><input class="rule-check" type="checkbox" value="sma-cross" />
-                SMA 5 &gt; SMA 20</label
-              >
-              <label>
-                <input class="rule-check" type="checkbox" value="three-red" />
-                連續三天紅柱
-              </label>
-              <label>
-                <input
-                  class="rule-check"
-                  type="checkbox"
-                  value="three-down-volume"
-                />
-                成交量連降三天
-              </label>
-              <label
-                ><input
-                  class="rule-check"
-                  type="checkbox"
-                  value="dif-above-dea"
-                />
-                MACD：DIF突破DEA</label
-              >
-              <label
-                ><input
-                  class="rule-check"
-                  type="checkbox"
-                  value="dea-below-dif"
-                />
-                MACD：DEA跌破DIF</label
-              >
-              <label
-                ><input class="rule-check" type="checkbox" value="kd-cross" />
-                K上穿D 且 K&lt;20</label
-              >
-              <label
-                ><input class="rule-check" type="checkbox" value="bias-high" />
-                Bias &gt; 5</label
-              >
-              <label
-                ><input class="rule-check" type="checkbox" value="bias-low" />
-                Bias &lt; -5</label
-              >
+            <h3>進階條件</h3>
+
+            <div class="rule-builder">
+              <!-- 左邊：可拖曳的技術指標 chips -->
+              <div class="rule-palette">
+                <div class="palette-title">把指標拖曳到右側條件句</div>
+                <div class="palette-chips">
+                  <!-- 這裡的 data-field 要對應後端欄位名稱 -->
+                  <div
+                    class="rule-chip"
+                    draggable="true"
+                    data-type="indicator"
+                    data-field="Sma_5"
+                  >
+                    SMA 5
+                  </div>
+                  <div
+                    class="rule-chip"
+                    draggable="true"
+                    data-type="indicator"
+                    data-field="Sma_20"
+                  >
+                    SMA 20
+                  </div>
+                  <div
+                    class="rule-chip"
+                    draggable="true"
+                    data-type="indicator"
+                    data-field="Sma_60"
+                  >
+                    SMA 60
+                  </div>
+                  <div
+                    class="rule-chip"
+                    draggable="true"
+                    data-type="indicator"
+                    data-field="DIF"
+                  >
+                    MACD DIF
+                  </div>
+                  <div
+                    class="rule-chip"
+                    draggable="true"
+                    data-type="indicator"
+                    data-field="DEA"
+                  >
+                    MACD DEA
+                  </div>
+                  <div
+                    class="rule-chip"
+                    draggable="true"
+                    data-type="indicator"
+                    data-field="K"
+                  >
+                    K
+                  </div>
+                  <div
+                    class="rule-chip"
+                    draggable="true"
+                    data-type="indicator"
+                    data-field="D"
+                  >
+                    D
+                  </div>
+                  <div
+                    class="rule-chip"
+                    draggable="true"
+                    data-type="indicator"
+                    data-field="Bias"
+                  >
+                    Bias
+                  </div>
+                </div>
+              </div>
+
+              <!-- 右邊：條件句列表 -->
+              <div class="rule-sentences">
+                <div class="rule-sentences-header">
+                  <span>條件句</span>
+                  <button
+                    type="button"
+                    class="btn-secondary"
+                    id="addConditionRowBtn"
+                  >
+                    + 新增條件
+                  </button>
+                </div>
+
+                <!-- 真正放一行一行條件句的容器 -->
+                <div id="conditionRowsContainer"></div>
+
+                <div class="rule-logic-row">
+                  所有條件之間以
+                  <select id="globalLogic">
+                    <option value="AND">AND（全部成立）</option>
+                    <option value="OR">OR（任一成立）</option>
+                  </select>
+                  連接
+                </div>
+
+                <div class="rule-actions-row">
+                  <button
+                    type="button"
+                    class="btn-secondary"
+                    id="applyConditionsBtn"
+                  >
+                    套用條件
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-secondary"
+                    id="clearConditionsBtn"
+                  >
+                    清除條件
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
+
         </div>
 
       <!--  圖表：K 線 + 成交量，滿版寬度上下疊 -->
@@ -334,9 +402,6 @@
         <div id="volumeChart"></div>
       </div>
     </div>
-
-    
-    
 
     <script src="/static/app.js"></script>
   </body>
