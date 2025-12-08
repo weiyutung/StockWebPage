@@ -1,4 +1,4 @@
-console.log("0141");
+console.log("目前最完美");
 
 // 後端 FastAPI 反向代理的前綴；用同源更簡單
 const API_BASE = "/api";

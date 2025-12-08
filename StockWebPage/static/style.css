@@ -1048,3 +1048,119 @@ button {
   line-height: 1.4;
   color: #888;
 }
+
+/* ===  彈出視窗 === */
+.hbd-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: none; /* 🔹預設完全不顯示 */
+  align-items: center;
+  justify-content: center;
+  z-index: 5000; /* 蓋過 menu / 圖表 */
+}
+
+/* 顯示時改成 flex，置中卡片 */
+.hbd-overlay.show {
+  display: flex;
+}
+
+.hbd-popup {
+  position: relative;
+  background: #ffffff;
+  padding: 32px 42px 34px; /* 🔹變得更寬＋上下更厚 */
+  border-radius: 26px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
+  text-align: center;
+  min-width: 320px; /* 🔹原本 260 → 320 */
+  max-width: 420px; /* 🔹原本 320 → 420 */
+  animation: hbd-pop 0.7s ease-out;
+}
+
+.hbd-title {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+
+.hbd-subtitle {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.hbd-text {
+  font-size: 13px;
+  color: #555;
+}
+
+/* 右上角叉叉 */
+.hbd-close-btn {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  border: none;
+  background: transparent;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+/* 彈出動畫：往上 + 放大一下 */
+@keyframes hbd-pop {
+  0% {
+    transform: translateY(40px) scale(0.7);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(0) scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* GIF 外層：置中＋跟下面文字留距離 */
+.hbd-gif-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+  margin-bottom: 10px;
+}
+
+/* GIF 本體：大小＋飄浮動畫 */
+.hbd-gif {
+  width: 120px; /* 🔹可以改成 140 / 160 看喜歡 */
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+  animation: hbd-float 2.4s ease-in-out infinite;
+}
+
+/* 小小的上下飄 + 微微放大 */
+@keyframes hbd-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-8px) scale(1.03);
+  }
+}
+/* 下一個交易日策略那一行的樣式 */
+#predictionText {
+  margin: 0px 0 0px 0; /* 上 左 下 右 */
+}
+
+#predictionText .pred-label {
+  font-size: 14px; /* 左邊「下個交易日策略評估：」 */
+  color: #000000;
+}
+
+#predictionText .pred-signal {
+  font-size: 18px; /* 右邊 Buy / Hold / Sell */
+  font-weight: 600;
+}
