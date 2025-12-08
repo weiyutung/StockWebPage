@@ -26,6 +26,28 @@
     <link href="/static/style.css" rel="stylesheet" />
   </head>
   <body>
+    <div id="hbdOverlay" class="hbd-overlay">
+      <div class="hbd-popup">
+        <button
+          type="button"
+          class="hbd-close-btn"
+          aria-label="關閉"
+          onclick="hideHbdPopup()"
+        >
+          ✕
+        </button>
+
+        <div class="hbd-title">\魏羽彤/</div>
+        <div class="hbd-subtitle">22歲生日快樂🎂Happy Birthday</div>
+        <div class="hbd-text">
+          希望你雙12順利搶到便宜的Ace Pro 2帶去韓國拍
+        </div>
+
+        
+      </div>
+    </div>
+
+
     <!-- 上面的三槓登入選單保留 -->
     <div class="menu-container" id="menuContainer">
       <div class="menu-icon">
@@ -313,6 +335,14 @@
                     class="rule-chip"
                     draggable="true"
                     data-type="indicator"
+                    data-field="Sma_10"
+                  >
+                    SMA 10
+                  </div>
+                  <div
+                    class="rule-chip"
+                    draggable="true"
+                    data-type="indicator"
                     data-field="Sma_20"
                   >
                     SMA 20
@@ -324,6 +354,22 @@
                     data-field="Sma_60"
                   >
                     SMA 60
+                  </div>
+                  <div
+                    class="rule-chip"
+                    draggable="true"
+                    data-type="indicator"
+                    data-field="Sma_120"
+                  >
+                    SMA 120
+                  </div>
+                  <div
+                    class="rule-chip"
+                    draggable="true"
+                    data-type="indicator"
+                    data-field="Sma_240"
+                  >
+                    SMA 240
                   </div>
                   <div
                     class="rule-chip"
@@ -356,6 +402,14 @@
                     data-field="D"
                   >
                     D
+                  </div>
+                  <div
+                    class="rule-chip"
+                    draggable="true"
+                    data-type="indicator"
+                    data-field="J"
+                  >
+                    J
                   </div>
                   <div
                     class="rule-chip"

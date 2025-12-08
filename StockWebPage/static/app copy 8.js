@@ -394,11 +394,8 @@ async function displayStockData(data, symbol) {
     window.volumeChartInst = null;
   }
 
-  // const GRID_PAD_PRICE = { top: 10, right: 0, bottom: -30, left: 16 };
-  // const GRID_PAD_VOLUME = { top: -25, right: -25, bottom: 0, left: 28 };
-
-  const GRID_PAD_PRICE = { top: 10, right: 0, bottom: -30, left: 28 };
-  const GRID_PAD_VOLUME = { top: -25, right: -3, bottom: 0, left: 15 };
+  const GRID_PAD_PRICE = { top: 10, right: 0, bottom: -30, left: 16 };
+  const GRID_PAD_VOLUME = { top: -25, right: -25, bottom: 0, left: 28 };
 
   // ===== 上方「價格＋技術線」圖 =====
   const optionsPrice = {
@@ -452,9 +449,8 @@ async function displayStockData(data, symbol) {
     xaxis: buildSharedXAxis(),
     yaxis: [
       {
-        title: { text: "價格 / SMA", offsetX: 0, },
+        title: { text: "價格 / SMA" },
         labels: {
-          offsetX: 15,
           formatter: (v) => {
             if (v == null || isNaN(v)) return "";  // ⬅ 先擋掉 null / NaN
             return Number(v);
@@ -571,10 +567,6 @@ async function displayStockData(data, symbol) {
   };
 
   // ===== 下方「成交量」圖 =====
-  const initChecked = getCheckedIndicators?.() ?? [];
-  const initShowMacd = initChecked.some((n) => indicatorGroups.macd.includes(n));
-  const initShowKdj = initChecked.some((n) => indicatorGroups.kdj.includes(n));
-  const initShowBias = initChecked.some((n) => indicatorGroups.bias.includes(n));
   const optionsVolume = {
     chart: {
       id: "volumePane",
@@ -589,7 +581,7 @@ async function displayStockData(data, symbol) {
     stroke: { width: 0 },
     grid: { padding: GRID_PAD_VOLUME },
     xaxis: buildSharedXAxis(),
-    yaxis: makeVolumeYAxes(initShowMacd, initShowKdj, initShowBias),
+    yaxis: makeVolumeYAxis(),
     dataLabels: { enabled: false },
     tooltip: {
       enabled: true,
@@ -865,12 +857,18 @@ async function displayStockData(data, symbol) {
       false
     );
 
-    // 7) 下方成交量圖：y 軸結構跟上面同步，但把右邊軸藏起來，只留下同樣寬度
+    // 7) 更新下方 Volume padding（保留你原本的邏輯）
     ApexCharts.exec(
       "volumePane",
       "updateOptions",
       {
-        yaxis: makeVolumeYAxes(showMacd, showKdj, showBias),
+        grid: {
+          padding: {
+            left: 25,
+            right: Math.max(0, newVolRightPad - 20),
+          },
+        },
+        yaxis: makeVolumeYAxis(),
       },
       false,
       false
@@ -1120,132 +1118,12 @@ function makeVolumeYAxis() {
   const vmax = Math.max(1, ...arr);
   const ratio = window.VOL_PAD_TOP_RATIO ?? 0.18;
   return {
-    title: { text: "Volume", offsetX: 0 },
+    title: { text: "Volume", offsetX: 5 }, // 每次更新時都帶上，避免被覆蓋_offsetX往右推一點，讓位置跟「價格 / SMA」比較靠近
     min: 0,
     max: Math.ceil(vmax * (1 + ratio)),
-    labels: { offsetX: 5, formatter: formatVolume },
-    opposite: false,
+    labels: { offsetX: 15, formatter: formatVolume },
   };
 }
-
-// 成交量圖用的「四軸版本」，只顯示第 0 軸，其餘只是佔位用
-// function makeVolumeYAxes(showMacd = false, showKdj = false, showBias = false) {
-//   const main = makeVolumeYAxis();
-
-//   return [
-//     main,
-
-//     // ---- MACD 佔位軸：位置、寬度跟上面第 1 軸一樣，但整個隱形 ----
-//     {
-//       opposite: true,
-//       show: showMacd,          // 有勾 MACD 才占位
-//       tickAmount: 4,
-//       axisTicks: { show: false },
-//       axisBorder: { show: false },
-//       labels: {
-//         show: true,
-//         // 給一個固定長度的字串，讓寬度跟上面差不多，但文字透明
-//         formatter: () => "00.00",
-//         style: { colors: ["transparent"] },
-//       },
-//       title: { text: "" },
-//     },
-
-//     // ---- KDJ 佔位軸 ----
-//     {
-//       opposite: true,
-//       show: showKdj,
-//       tickAmount: 4,
-//       axisTicks: { show: false },
-//       axisBorder: { show: false },
-//       labels: {
-//         show: true,
-//         formatter: () => "100", // 大概是 0~100 的寬度
-//         style: { colors: ["transparent"] },
-//       },
-//       title: { text: "" },
-//     },
-
-//     // ---- Bias 佔位軸 ----
-//     {
-//       opposite: true,
-//       show: showBias,
-//       tickAmount: 4,
-//       axisTicks: { show: false },
-//       axisBorder: { show: false },
-//       labels: {
-//         show: true,
-//         formatter: () => "00.00",
-//         style: { colors: ["transparent"] },
-//       },
-//       title: { text: "" },
-//     },
-//   ];
-// }
-// 成交量圖用的「四軸版本」，右邊 3 軸只是佔位用
-function makeVolumeYAxes(showMacd = false, showKdj = false, showBias = false) {
-  const main = makeVolumeYAxis(); // 左邊真正的 Volume 軸
-
-  return [
-    main,
-
-    // ---- MACD 佔位軸 ----
-    {
-      opposite: true,
-      show: showMacd,
-      tickAmount: 4,
-      axisTicks: { show: false },
-      axisBorder: { show: false },
-      labels: {
-        show: true,
-        formatter: () => "00.00",          // 跟上圖一樣寬度
-        style: { colors: ["transparent"] } // 文字透明，看不到
-      },
-      title: {
-        text: "MACD",
-        style: { color: "transparent" }    // 標題也透明，但會占寬
-      },
-    },
-
-    // ---- KDJ 佔位軸 ----
-    {
-      opposite: true,
-      show: showKdj,
-      tickAmount: 4,
-      axisTicks: { show: false },
-      axisBorder: { show: false },
-      labels: {
-        show: true,
-        formatter: () => "100",            // 大概 0~100，寬度跟上面差不多
-        style: { colors: ["transparent"] },
-      },
-      title: {
-        text: "KDJ",
-        style: { color: "transparent" },
-      },
-    },
-
-    // ---- Bias 佔位軸 ----
-    {
-      opposite: true,
-      show: showBias,
-      tickAmount: 4,
-      axisTicks: { show: false },
-      axisBorder: { show: false },
-      labels: {
-        show: true,
-        formatter: () => "00.00",
-        style: { colors: ["transparent"] },
-      },
-      title: {
-        text: "Bias",
-        style: { color: "transparent" },
-      },
-    },
-  ];
-}
-
-
 
 // X 軸永遠使用目前的 categories（交易日字串）
 // function makeXAxisCategories() {
@@ -1349,54 +1227,24 @@ function recomputeVolumeAxis() {
   window.volumeChart.updateOptions({ yaxis: makeVolumeYAxis() }, false, false);
 }
 
-// function updateVolRatio(value) {
-//   VOL_PAD_TOP_RATIO = parseFloat(value);
-//   const label = document.getElementById("volRatioValue");
-//   if (label) label.textContent = value;
-
-//   if (window.volumeChart && window.stockData) {
-//     const arr = (window.stockData || []).map((r) => +r.volume || 0);
-//     const vmax = Math.max(1, ...arr);
-//     const vmin = 0;
-//     const vmaxAdj = Math.ceil(vmax * (1 + VOL_PAD_TOP_RATIO));
-
-//     window.volumeChart.updateOptions(
-//       {
-//         yaxis: {
-//           ...makeVolumeYAxis(), // 保留 title 與 labels.formatter
-//           min: vmin,
-//           max: vmaxAdj,
-//         },
-//       },
-//       false,
-//       false
-//     );
-//   }
-// }
-
 function updateVolRatio(value) {
   VOL_PAD_TOP_RATIO = parseFloat(value);
   const label = document.getElementById("volRatioValue");
   if (label) label.textContent = value;
 
-  if (window.volumeChartInst && window.stockData) {
+  if (window.volumeChart && window.stockData) {
     const arr = (window.stockData || []).map((r) => +r.volume || 0);
     const vmax = Math.max(1, ...arr);
     const vmin = 0;
     const vmaxAdj = Math.ceil(vmax * (1 + VOL_PAD_TOP_RATIO));
 
-    const main = makeVolumeYAxis();
-    main.min = vmin;
-    main.max = vmaxAdj;
-
-    window.volumeChartInst.updateOptions(
+    window.volumeChart.updateOptions(
       {
-        yaxis: [
-          main,
-          { show: false, opposite: true },
-          { show: false, opposite: true },
-          { show: false, opposite: true },
-        ],
+        yaxis: {
+          ...makeVolumeYAxis(), // 保留 title 與 labels.formatter
+          min: vmin,
+          max: vmaxAdj,
+        },
       },
       false,
       false
@@ -1404,25 +1252,16 @@ function updateVolRatio(value) {
   }
 }
 
-
 let __lastCatsLen = null; // 放在全域
 
 function ensureVolumeAxis() {
   if (!window.stockData) return;
-
-  const checked = getCheckedIndicators?.() ?? [];
-  const showMacd = checked.some((n) => indicatorGroups.macd.includes(n));
-  const showKdj = checked.some((n) => indicatorGroups.kdj.includes(n));
-  const showBias = checked.some((n) => indicatorGroups.bias.includes(n));
-
   const opt = {
-    yaxis: makeVolumeYAxes(showMacd, showKdj, showBias),
+    yaxis: makeVolumeYAxis(),
     tooltip: { y: { formatter: formatVolume } },
   };
-
   ApexCharts.exec("volumePane", "updateOptions", opt, false, false);
 }
-
 
 function toggleCustomDate() {
   const div = document.getElementById("customDateRange");
