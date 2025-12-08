@@ -191,7 +191,104 @@ def suggest(
             cur.close(); cn.close()
         except:
             pass
+@app.get("/api/signal_prediction/{symbol}")
+def get_signal_prediction(symbol: str):
+    """
+    從 signal_prediction 表抓某檔股票的買賣訊號（只回傳 Buy / Sell，Hold 不回傳）
+    回傳格式：
+    [
+      { "date": "2023-11-24", "sig": "Buy" },
+      { "date": "2023-11-27", "sig": "Sell" },
+      ...
+    ]
+    """
+    sql = """
+        SELECT date, sig
+        FROM signal_prediction
+        WHERE symbol = %s
+        ORDER BY date ASC
+    """
+    try:
+        cn = pool.get_connection()
+        cur = cn.cursor(dictionary=True)
+        cur.execute(sql, (symbol,))
+        rows = cur.fetchall()
 
+        # 把 DATE 轉成 'YYYY-MM-DD' 字串，前端比較好處理
+        for r in rows:
+            if isinstance(r["date"], date):
+                r["date"] = r["date"].isoformat()
+
+        return rows
+
+    except mysql.connector.Error as e:
+        raise HTTPException(status_code=500, detail=f"MySQL error: {e}")
+
+    finally:
+        try:
+            cur.close()
+            cn.close()
+        except:
+            pass
+
+@app.get("/api/prediction")
+def get_prediction(
+    symbol: str = Query(..., min_length=1)
+):
+    """
+    從 future_prediction 表中取某 symbol 的未來 30 天預測資料。
+    每一列 = 一天，回傳結構：
+    {
+      "symbol": "AAPL",
+      "count": 30,
+      "predictions": [
+        { "date": "2025-11-27", "day_index": 1, "dir": "up" },
+        { "date": "2025-11-28", "day_index": 2, "dir": "up" },
+        ...
+      ]
+    }
+    """
+    sql = """
+        SELECT symbol, pred_date, day_index, dir
+        FROM future_prediction
+        WHERE symbol = %s
+        ORDER BY day_index ASC
+    """
+
+    try:
+        cn = pool.get_connection()
+        cur = cn.cursor(dictionary=True)
+
+        cur.execute(sql, (symbol,))
+        rows = cur.fetchall()
+
+        if not rows:
+            raise HTTPException(status_code=404, detail="Prediction not found for this symbol")
+
+        predictions = [
+            {
+                "date": row["pred_date"].isoformat(),  # DATE -> 'YYYY-MM-DD'
+                "day_index": row["day_index"],
+                "dir": row["dir"],
+            }
+            for row in rows
+        ]
+
+        return {
+            "symbol": symbol,
+            "count": len(predictions),
+            "predictions": predictions,
+        }
+
+    except mysql.connector.Error as e:
+        raise HTTPException(status_code=500, detail=f"MySQL error: {e}")
+
+    finally:
+        try:
+            cur.close()
+            cn.close()
+        except:
+            pass
 
 
 

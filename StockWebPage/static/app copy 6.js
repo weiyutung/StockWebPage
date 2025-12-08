@@ -1,4 +1,4 @@
-console.log("2-32");
+console.log("11-10");
 
 // 後端 FastAPI 反向代理的前綴；用同源更簡單
 const API_BASE = "/api";
@@ -125,7 +125,6 @@ let originalMaxX = null;
 // ===== 時間區隔狀態 =====
 let currentMonths = 3; // 目前的時間區隔長度（幾個月）
 let showPeriods = false; // 是否顯示時間區隔線
-let currentRange = "3m"; // 目前使用中的時間範圍 (5d / 1m / 3m / 1y / custom ...)
 
 // === 視窗範圍工具（放這裡） ===
 function getCurrentXRange() {
@@ -149,6 +148,7 @@ function restoreXRange(range) {
 }
 
 //保持顯示技術線
+//儲存目前勾選的函式
 function getCheckedIndicators() {
   return Array.from(document.querySelectorAll(".indicator-check:checked")).map(
     (el) => el.value
@@ -169,6 +169,7 @@ function applyIndicators() {
   }
 }
 
+//保持條件判斷選擇
 //儲存條件判斷勾選狀態
 function getCheckedRules() {
   return Array.from(document.querySelectorAll(".rule-check:checked")).map(
@@ -232,15 +233,14 @@ function selectSymbol(symbol) {
   const controlPanel = document.getElementById("controlPanel");
   if (controlPanel) controlPanel.classList.remove("open");
 
-  // 載入新的股票： 沿用目前的時間範圍
-  loadStockWithRange(symbol, currentRange || "3m");
+  // 載入新的股票
+  loadStockWithRange(symbol, "3m");
 }
 
 async function loadStockWithRange(symbol, range) {
-  currentRange = range;   // 記住這次使用的時間範圍
   // 1. 先記住目前使用者勾選了哪些技術線和條件
   const checkedIndicatorsBefore = getCheckedIndicators();
-  const builderStateBefore = getBuilderState();
+  const builderStateBefore = getBuilderState(); // ★ 新增
 
   // 自訂日期區塊
   if (range === "custom") {
@@ -306,7 +306,7 @@ async function loadStockWithRange(symbol, range) {
   restoreCheckedIndicators(checkedIndicatorsBefore);
   applyIndicators();
 
-  restoreBuilderState(builderStateBefore);
+  restoreBuilderState(builderStateBefore); 
   applyConditionBuilder(true); // 同樣靜音
 
   // 如果買賣點目前是開啟狀態，換股票 / 區間後自動更新
@@ -450,12 +450,7 @@ async function displayStockData(data, symbol) {
     yaxis: [
       {
         title: { text: "價格 / SMA" },
-        labels: {
-          formatter: (v) => {
-            if (v == null || isNaN(v)) return "";  // ⬅ 先擋掉 null / NaN
-            return Number(v).toFixed(2);
-          },
-        },
+        labels: { formatter: (v) => Number(v.toFixed(2)) },
         tickAmount: 4,
         opposite: false,
         show: true,
@@ -471,12 +466,7 @@ async function displayStockData(data, symbol) {
       },
       {
         title: { text: "MACD" },
-        labels: {
-          formatter: (v) => {
-            if (v == null || isNaN(v)) return "";
-            return Number(v).toFixed(2);
-          },
-        },
+        labels: { formatter: (v) => Number(v.toFixed(2)) },
         tickAmount: 4,
         opposite: true,
         show: false,
@@ -484,12 +474,7 @@ async function displayStockData(data, symbol) {
       },
       {
         title: { text: "KDJ" },
-        labels: {
-          formatter: (v) => {
-            if (v == null || isNaN(v)) return "";
-            return Number(v).toFixed(0);
-          },
-        },
+        labels: { formatter: (v) => Number(v.toFixed(0)) },
         tickAmount: 4,
         opposite: true,
         show: false,
@@ -497,18 +482,12 @@ async function displayStockData(data, symbol) {
       },
       {
         title: { text: "Bias" },
-        labels: {
-          formatter: (v) => {
-            if (v == null || isNaN(v)) return "";
-            return Number(v).toFixed(2);
-          },
-        },
+        labels: { formatter: (v) => Number(v.toFixed(2)) },
         opposite: true,
         show: false,
         seriesName: ["Bias"],
       },
     ],
-
     series: [{ name: "K線圖", type: "candlestick", data: chartData }],
     tooltip: {
       shared: true,
@@ -1076,22 +1055,6 @@ function getLowPriceBelowByDate(dateStr) {
   return base * SIGNAL_MARKER_BELOW_RATIO;
 }
 
-// 新增：直接用「第幾根 K 棒」來取最低價往下 X，比用 Date 對來得穩
-function getLowPriceBelowByIndex(idx) {
-  if (!window.stockData || !window.stockData[idx]) return null;
-
-  const rec = window.stockData[idx];
-  const low = parseFloat(rec.low);
-  const close = parseFloat(rec.close);
-
-  if (Number.isFinite(low)) return low * SIGNAL_MARKER_BELOW_RATIO;
-  if (Number.isFinite(close)) return close * SIGNAL_MARKER_BELOW_RATIO;
-  return null;
-}
-
-
-
-
 
 function formatVolume(val) {
   if (val == null || isNaN(val)) return "";
@@ -1157,14 +1120,10 @@ function getTickAmountByMonths() {
 
 function buildSharedXAxis() {
   const cats = window.tradingDates || [];
-  const len = cats.length;
   return {
     type: "category",
-    categories: cats,
-    tickAmount:
-      len > 1
-        ? Math.min(getTickAmountByMonths(), len - 1)
-        : len,
+    //categories: cats,
+    tickAmount: Math.min(getTickAmountByMonths(), cats.length - 1),
     tickPlacement: "on",
     labels: {
       show: true,
@@ -1337,94 +1296,6 @@ function addPeriodSeparators(periodMonths) {
       points: [...conditionPoints, ...points], // 舊的條件點 + 新的區隔標籤
     },
   });
-}
-
-
-// 產生時間區隔標註(有線位置不對)
-function getPeriodAnnotations(periodMonths) {
-  const dates = window.tradingDates || [];
-  const stock = window.stockData || [];
-
-  console.log(
-    "[getPeriodAnnotations] periodMonths =",
-    periodMonths,
-    "dates =",
-    dates.length
-  );
-
-  if (dates.length === 0 || stock.length === 0) {
-    return { points: [], xaxis: [] };
-  }
-
-  // 1 個月就不畫區隔
-  if (periodMonths <= 1) {
-    return { points: [], xaxis: [] };
-  }
-
-  // 3m → 3 段；6m → 6 段；12m 以上 → 4 段 (Q1~Q4)
-  const sections = periodMonths >= 12 ? 4 : periodMonths;
-
-  const labels =
-    periodMonths >= 12
-      ? ["Q1", "Q2", "Q3", "Q4"]
-      : Array.from({ length: sections }, (_, i) => String(i + 1));
-
-  const n = dates.length;
-  const step = n / sections; // 每一段大約有多少根 K 棒
-
-  // 用最高價當作 label 的 y 位置（再拉高一點點避免貼邊）
-  const allHighs = stock.map((r) => parseFloat(r.high) || 0);
-  const maxHigh = Math.max(...allHighs);
-  const safeY = maxHigh * 1.02 || 0;
-
-  const points = [];
-  const xaxis = [];
-
-  for (let i = 0; i < sections; i++) {
-    // 這一段的中間 index，放 Q1 / 1 / 2...
-    let midIdx = Math.floor(step * (i + 0.5));
-    if (midIdx < 0) midIdx = 0;
-    if (midIdx > n - 1) midIdx = n - 1;
-
-    points.push({
-      x: midIdx,        // ★ 這裡用「index」，不是日期字串
-      xAxisIndex: 0,
-      y: safeY,
-      yAxisIndex: 0,
-      marker: { size: 0 },
-      label: {
-        borderColor: "transparent",
-        offsetY: -5,
-        style: {
-          background: "transparent",
-          color: "#555",
-          fontSize: "14px",
-          fontWeight: "900",
-        },
-        text: labels[i] || String(i + 1),
-        cssClass: "period-label",
-      },
-    });
-
-    // 段與段之間的虛線（最後一段右邊不用畫）
-    if (i < sections - 1) {
-      let lineIdx = Math.floor(step * (i + 1));
-      if (lineIdx < 0) lineIdx = 0;
-      if (lineIdx > n - 1) lineIdx = n - 1;
-
-      xaxis.push({
-        x: lineIdx,         // ★ 一樣用「index」
-        xAxisIndex: 0,
-        strokeDashArray: 4,
-        borderColor: "#777",
-        borderWidth: 1,
-        opacity: 0.6,
-        cssClass: "period-separator",
-      });
-    }
-  }
-
-  return { points, xaxis };
 }
 
 // 顯示/關閉「時間區隔」的按鈕
@@ -1922,7 +1793,10 @@ function applyConditionBuilder(silent = false) {
     }
     return;
   }
+
+
   const markers = [];
+
   // 3. 逐根 K 線檢查所有條件
   for (let i = 0; i < window.stockData.length; i++) {
     const rec = window.stockData[i];
@@ -2018,6 +1892,9 @@ function applyConditionBuilder(silent = false) {
       noHitEl.style.display = "none";
     }
   }
+
+
+
   // 存到全域，讓 updateIndicatorsFromChecked 一起畫出來
   conditionMarkPoints = markers;
 
@@ -2057,52 +1934,21 @@ async function refreshSignalMarkersForCurrentView({ showAlertIfEmpty = false } =
     const sig = row.sig;
     if (sig !== "Buy" && sig !== "Sell") return;
 
-    // 後端回來的日期 → 標準化
     const dateKey = normalizeDateKey(row.date);
     if (!dateKey) return;
 
-    // 找到「訊號那一天」在 tradingDates 裡是第幾根 K
     const idx = window.tradingDates.findIndex(
       (d) => normalizeDateKey(d) === dateKey
     );
-    if (idx === -1) {
-      console.warn(
-        "[signals] 找不到對應的交易日，略過：",
-        row.date,
-        "→",
-        dateKey
-      );
-      return;
-    }
+    if (idx === -1) return;
 
-    //  保留你的設計：畫在「隔日」那根 K 棒
-    const nextIdx = idx + 1;
-    if (
-      nextIdx >= window.tradingDates.length ||
-      nextIdx >= window.stockData.length
-    ) {
-      console.warn(
-        "[signals] 訊號在最後一天，沒有隔日 K 線可以畫：",
-        row.date
-      );
-      return;
-    }
+    const xCat = window.tradingDates[idx];
+    const yVal = getLowPriceBelowByDate(xCat);
+    if (yVal == null) return;
 
-    const xCat = window.tradingDates[nextIdx];         // 隔日的日期（X 軸）
-    const yVal = getLowPriceBelowByIndex(nextIdx);     // 隔日 K 棒的最低價往下 X（Y 軸）
-
-    if (yVal == null) {
-      console.warn("該日期沒有對應的 K 線數值，略過:", xCat);
-      return;
-    }
-
-    if (sig === "Buy") {
-      buyPts.push({ x: xCat, y: yVal });
-    } else {
-      sellPts.push({ x: xCat, y: yVal });
-    }
+    if (sig === "Buy") buyPts.push({ x: xCat, y: yVal });
+    else sellPts.push({ x: xCat, y: yVal });
   });
-
 
   if (
     rowsInRange.length === 0 ||
@@ -2387,6 +2233,225 @@ document.querySelectorAll(".indicator-check").forEach((cb) => {
 });
 
 // ==========================================
+// ★ 全新重寫：集中式標註管理系統 (解決衝突問題)
+// ==========================================
+
+// 1. 定義全域狀態 (Single Source of Truth)
+window.appState = {
+  rules: [], // 存放目前勾選的規則 (Array)
+  showPeriods: false, // 是否顯示時間區隔 (Boolean)
+  currentMonths: 3, // 目前的時間長度 (Number)
+};
+
+//計算並渲染所有標註 無論是勾選規則、還是切換時間區隔，最後都呼叫這支函式
+
+function renderAllAnnotations() {
+  if (!chart || !window.stockData || !window.tradingDates) return;
+
+  // 產生條件判斷的標註 (倒三角)
+  const conditionAnnotations = getConditionAnnotations(window.appState.rules);
+
+  // 產生時間區隔的標註 (虛線 + Q1/Q2文字)
+  const periodAnnotations = window.appState.showPeriods
+    ? getPeriodAnnotations(window.appState.currentMonths)
+    : { points: [], xaxis: [] };
+
+  // 合併所有標註
+  const finalPoints = [...conditionAnnotations, ...periodAnnotations.points];
+  const finalXaxis = [...periodAnnotations.xaxis];
+
+  console.log(
+    `[重繪] 條件點:${conditionAnnotations.length}, 區隔線:${finalXaxis.length}`
+  );
+
+  // 一次性更新到圖表
+  chart.updateOptions({
+    annotations: {
+      xaxis: finalXaxis,
+      points: finalPoints,
+    },
+  });
+}
+
+//產生條件標註陣列 (純計算，不操作圖表)
+
+function getConditionAnnotations(rules) {
+  if (!rules || rules.length === 0) return [];
+  let points = [];
+
+  const labelMap = {
+    "sma-cross": "SMA↑",
+    "dif-above-dea": "MACD↑",
+    "dea-below-dif": "MACD↓",
+    "kd-cross": "KD↑",
+    "bias-high": "偏離↑",
+    "bias-low": "偏離↓",
+    "three-red": "連",
+    "three-down-volume": "量↓",
+  };
+
+  window.stockData.forEach((row, i) => {
+    const prev = window.stockData[i - 1];
+    const prev2 = window.stockData[i - 2];
+    if (!prev || !prev2) return;
+
+    // 數值準備
+    const v = (r, k) => parseFloat(r[k]);
+    const sma5 = v(row, "Sma_5"),
+      sma20 = v(row, "Sma_20");
+    const pSma5 = v(prev, "Sma_5"),
+      pSma20 = v(prev, "Sma_20");
+    const dif = v(row, "DIF"),
+      dea = v(row, "DEA");
+    const pDif = v(prev, "DIF"),
+      pDea = v(prev, "DEA");
+    const k = v(row, "K"),
+      d = v(row, "D");
+    const pK = v(prev, "K"),
+      pD = v(prev, "D");
+    const bias = v(row, "Bias");
+
+    // 規則邏輯
+    const checks = {
+      "sma-cross": () => pSma5 < pSma20 && sma5 >= sma20,
+      "dif-above-dea": () => pDif < pDea && dif >= dea,
+      "dea-below-dif": () => pDea < pDif && dea >= dif,
+      "kd-cross": () => pK < pD && k >= d && k < 20,
+      "bias-high": () => bias > 5,
+      "bias-low": () => bias < -5,
+      "three-red": () =>
+        [row, prev, prev2].every((r) => v(r, "close") > v(r, "open")),
+      "three-down-volume": () =>
+        row.volume < prev.volume && prev.volume < prev2.volume,
+    };
+
+    // 判斷是否符合
+    let matchedText = "";
+    if (rules.length === 1) {
+      if (checks[rules[0]] && checks[rules[0]]())
+        matchedText = labelMap[rules[0]];
+    } else {
+      const allPass = rules.every((r) => checks[r] && checks[r]());
+      if (allPass) matchedText = rules.map((r) => labelMap[r]).join("");
+    }
+
+    // 建立標記
+    if (matchedText) {
+      points.push({
+        x: window.tradingDates[i],
+        y: parseFloat(row.low) * 0.98, // 最低價下方
+        yAxisIndex: 0,
+        marker: {
+          size: 5,
+          fillColor: "#000",
+          strokeColor: "#000",
+          shape: "triangle",
+        },
+        label: {
+          borderColor: "transparent",
+          offsetY: 30,
+          style: {
+            background: "transparent",
+            color: "#000",
+            fontSize: "12px",
+            fontWeight: "bold",
+          },
+          text: matchedText,
+        },
+      });
+    }
+  });
+  return points;
+}
+
+// 產生時間區隔標註 (純計算，不直接動圖表)
+function getPeriodAnnotations(periodMonths) {
+  if (!window.tradingDates || window.tradingDates.length === 0) {
+    return { points: [], xaxis: [] };
+  }
+  if (periodMonths <= 1) {
+    // 1 個月就不畫區隔
+    return { points: [], xaxis: [] };
+  }
+
+  const startDate = new Date(window.tradingDates[0]);
+  const endDate = new Date(window.tradingDates[window.tradingDates.length - 1]);
+  const totalMs = endDate - startDate;
+  if (totalMs <= 0) {
+    return { points: [], xaxis: [] };
+  }
+
+  const sections = periodMonths >= 12 ? 4 : periodMonths;
+  const labels =
+    periodMonths >= 12
+      ? ["Q1", "Q2", "Q3", "Q4"]
+      : Array.from({ length: sections }, (_, i) => (i + 1).toString());
+
+  const interval = totalMs / sections;
+
+  const allHighs = window.stockData
+    ? window.stockData.map((r) => parseFloat(r.high) || 0)
+    : [0];
+  const maxHigh = Math.max(...allHighs);
+  const safeY = maxHigh || 0;
+
+  const points = [];
+  const xaxis = [];
+
+  for (let i = 0; i < sections; i++) {
+    const sectionStart = new Date(startDate.getTime() + interval * i);
+    const sectionEnd = new Date(startDate.getTime() + interval * (i + 1));
+    const middle = new Date(
+      (sectionStart.getTime() + sectionEnd.getTime()) / 2
+    );
+
+    let midIdx = window.tradingDates.findIndex(
+      (d) => new Date(d).getTime() >= middle.getTime()
+    );
+    if (midIdx === -1) midIdx = window.tradingDates.length - 1;
+
+    // 上方 Q1 / 1 / 2 ... 標籤
+    points.push({
+      x: window.tradingDates[midIdx],
+      y: safeY,
+      yAxisIndex: 0,
+      marker: { size: 0 },
+      label: {
+        borderColor: "transparent",
+        offsetY: -5,
+        style: {
+          background: "transparent",
+          color: "#555",
+          fontSize: "14px",
+          fontWeight: "900",
+        },
+        text: labels[i] || (i + 1).toString(),
+        cssClass: "period-label",
+      },
+    });
+
+    // 區隔虛線
+    if (i < sections - 1) {
+      let lineIdx = window.tradingDates.findIndex(
+        (d) => new Date(d).getTime() >= sectionEnd.getTime()
+      );
+      if (lineIdx !== -1 && lineIdx < window.tradingDates.length - 1) {
+        xaxis.push({
+          x: window.tradingDates[lineIdx],
+          strokeDashArray: 4,
+          borderColor: "#777",
+          borderWidth: 1,
+          opacity: 0.6,
+          cssClass: "period-separator",
+        });
+      }
+    }
+  }
+
+  return { points, xaxis };
+}
+
+// ==========================================
 // 分析面板按鈕：開 / 關 右側控制面板
 // ==========================================
 document.addEventListener("DOMContentLoaded", () => {
@@ -2431,14 +2496,6 @@ function resetAllSelections() {
   }
 }
 
-function getTodayDateKey() {
-  const today = new Date();
-  const y = today.getFullYear();
-  const m = String(today.getMonth() + 1).padStart(2, "0");
-  const d = String(today.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
 async function showLatestSignal() {
   try {
     const symbol = getSymbol();
@@ -2458,73 +2515,19 @@ async function showLatestSignal() {
 
     const data = await response.json();
 
-    if (!Array.isArray(data) || data.length === 0) {
-      console.log("[showLatestSignal] 後端沒有任何信號資料");
-      predEl.textContent = "下一個交易日預測 : HOLD";
-      predEl.style.display = "block";
-      return;
-    }
+    let latestSignal = "HOLD"; // 預設 HOLD
 
-    // === 1. 以「今天」當基準日 ===
-    const baseKey = getTodayDateKey();           // 例如 2025-12-08
-    const baseTime = new Date(baseKey).getTime();
-    console.log("[showLatestSignal] 基準日(今天) =", baseKey, "ms =", baseTime);
-
-    // === 2. 掃過所有 signal，拆成「今天(含)之後」與「今天之前」 ===
-    let bestFuture = null;
-    let bestFutureTime = null;
-    let bestPast = null;
-    let bestPastTime = null;
-
-    const allDatesLog = [];
-
-    for (const row of data) {
-      if (!row.date) continue;
-
-      const key = normalizeDateKey(row.date); // 變成 YYYY-MM-DD
-      if (!key) continue;
-
-      const t = new Date(key).getTime();
-      if (!Number.isFinite(t)) continue;
-
-      allDatesLog.push(`${key} (${row.sig})`);
-
-      if (t >= baseTime) {
-        // 今天(含)之後 → 找「最早的那一天」＝真正的下一個交易日
-        if (bestFutureTime == null || t < bestFutureTime) {
-          bestFuture = row;
-          bestFutureTime = t;
-        }
-      } else {
-        // 今天之前 → 找「最後一天」當備用（資料只更新到以前的話用這個）
-        if (bestPastTime == null || t > bestPastTime) {
-          bestPast = row;
-          bestPastTime = t;
+    if (Array.isArray(data) && data.length > 0) {
+      // 找出「日期最新」的那一筆
+      let latestRow = data[0];
+      for (const row of data) {
+        if (row.date && latestRow.date) {
+          if (new Date(row.date) > new Date(latestRow.date)) {
+            latestRow = row;
+          }
         }
       }
-    }
-
-    console.log("[showLatestSignal] 所有信號日期 =", allDatesLog);
-
-    // === 3. 優先用「今天(含)之後最近的一天」，沒有就用「今天之前最後一天」 ===
-    let chosen = bestFuture || bestPast;
-    let latestSignal = "HOLD";
-
-    if (chosen) {
-      const chosenKey = normalizeDateKey(chosen.date);
-      latestSignal = chosen.sig || "HOLD";
-      console.log(
-        "[showLatestSignal] 選到的日期 =",
-        chosen.date,
-        "normalizeDateKey =",
-        chosenKey,
-        "sig =",
-        latestSignal
-      );
-    } else {
-      console.log(
-        "[showLatestSignal] 找不到任何合法日期，預設 HOLD"
-      );
+      latestSignal = latestRow?.sig || "HOLD";
     }
 
     predEl.textContent = `下一個交易日預測 : ${latestSignal}`;
