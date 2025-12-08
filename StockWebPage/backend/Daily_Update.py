@@ -283,7 +283,7 @@ def main():
         cur.execute("USE `stockboard`;")
 
         # 抓最近 300 天（含週末、安全一點避免缺資料）
-        days_back = 300
+        days_back = 480
         start_date = (date.today() - timedelta(days=days_back)).strftime("%Y-%m-%d")
         print(f"本次更新抓取 {start_date} 之後的資料")
 
