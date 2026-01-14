@@ -26,30 +26,9 @@
     <link href="/static/style.css" rel="stylesheet" />
   </head>
   <body>
-    <!-- <div id="hbdOverlay" class="hbd-overlay">
-      <div class="hbd-popup">
-        <button
-          type="button"
-          class="hbd-close-btn"
-          aria-label="關閉"
-          onclick="hideHbdPopup()"
-        >
-          ✕
-        </button>
-
-        <div class="hbd-title">\魏羽彤/</div>
-        <div class="hbd-subtitle">22歲生日快樂🎂Happy Birthday</div>
-        <div class="hbd-text">
-          希望你雙12順利搶到便宜的Ace Pro 2帶去韓國拍
-        </div>
-
-        
-      </div>
-    </div> -->
-
     <!-- 上面的三槓登入選單保留 -->
     <div class="menu-container" id="menuContainer">
-      <!-- <div class="menu-icon">
+      <div class="menu-icon">
         ☰
         <div class="dropdown round-card" id="dropdownMenu">
           <div id="user-email" style="padding: 8px 15px; font-weight: bold"></div>
@@ -57,7 +36,7 @@
           <a href="register.html" id="register-btn">註冊</a>
           <a href="#" id="logout-btn" onclick="logout()" style="display: none">登出</a>
         </div>
-      </div> -->
+      </div>
     </div>
     <div id="main-content">
   
@@ -190,6 +169,10 @@
               </button>
             </div>
           </div>
+
+
+
+
           <!-- 7. 控制面板按鈕 -->
           <button id="controlPanelToggle" class="btn-secondary">
             分析面板
@@ -222,37 +205,11 @@
               顯示區隔
             </button>
           </div>
-
-          <div class="control-section">
-            <h3>預測</h3>
-            <!-- <button
-              id="future30Btn3"
-              class="btn-secondary"
-              type="button"
-            >
-              與歷史股票比較趨勢
-            </button> -->
-            <button
-              id="future30Btn"
-              class="btn-secondary"
-              type="button"
-            >
-              未來30天趨勢
-            </button>
-            <button
-              id="future30Btn2"
-              class="btn-secondary"
-              type="button"
-            >
-              買賣點
-            </button>
-            <div id="predictionText" style="font-size: 10px; color: #333; padding: 10px;"></div> 
-          </div>
           <!-- 上：技術指標 -->
           <div class="control-section">
             
             <h3>顯示技術線</h3>
-              <div class="control-section" style="margin-bottom: 10px;">
+            <div class="control-section" style="margin-bottom: 10px;">
                 <button class="btn-secondary" style="width: 100%; color: #c0392b; border-color: #e74c3c;" onclick="resetAllSelections()">
                   清除所有選項
                 </button>
@@ -293,11 +250,11 @@
               >
               <label
                 ><input class="indicator-check" type="checkbox" value="DIF" />
-                MACD DIF (快線)</label
+                DIF (快線)</label
               >
               <label
                 ><input class="indicator-check" type="checkbox" value="DEA" />
-                MACD DEA (慢線)</label
+                DEA (慢線)</label
               >
               <label
                 ><input class="indicator-check" type="checkbox" value="K" />
@@ -318,188 +275,57 @@
             </div>
           </div>
 
-
-          <!-- 下：進階選項（拖曳式條件判斷） -->
+          <!-- 下：進階選項（條件判斷） -->
           <div class="control-section">
-            <h3>進階條件</h3>
-
-            <div class="rule-builder">
-              <!-- 左邊：可拖曳的技術指標 chips -->
-              <div class="rule-palette">
-                <div class="palette-title">把指標拖曳到下方條件句</div>
-                <div class="palette-chips">
-                  <!-- 這裡的 data-field 要對應後端欄位名稱 -->
-                  <div
-                    class="rule-chip"
-                    draggable="true"
-                    data-type="indicator"
-                    data-field="Sma_5"
-                  >
-                    SMA 5
-                  </div>
-                  <div
-                    class="rule-chip"
-                    draggable="true"
-                    data-type="indicator"
-                    data-field="Sma_10"
-                  >
-                    SMA 10
-                  </div>
-                  <div
-                    class="rule-chip"
-                    draggable="true"
-                    data-type="indicator"
-                    data-field="Sma_20"
-                  >
-                    SMA 20
-                  </div>
-                  <div
-                    class="rule-chip"
-                    draggable="true"
-                    data-type="indicator"
-                    data-field="Sma_60"
-                  >
-                    SMA 60
-                  </div>
-                  <div
-                    class="rule-chip"
-                    draggable="true"
-                    data-type="indicator"
-                    data-field="Sma_120"
-                  >
-                    SMA 120
-                  </div>
-                  <div
-                    class="rule-chip"
-                    draggable="true"
-                    data-type="indicator"
-                    data-field="Sma_240"
-                  >
-                    SMA 240
-                  </div>
-                  <div
-                    class="rule-chip"
-                    draggable="true"
-                    data-type="indicator"
-                    data-field="DIF"
-                  >
-                    DIF
-                  </div>
-                  <div
-                    class="rule-chip"
-                    draggable="true"
-                    data-type="indicator"
-                    data-field="DEA"
-                  >
-                    DEA
-                  </div>
-                  <div
-                    class="rule-chip"
-                    draggable="true"
-                    data-type="indicator"
-                    data-field="K"
-                  >
-                    K
-                  </div>
-                  <div
-                    class="rule-chip"
-                    draggable="true"
-                    data-type="indicator"
-                    data-field="D"
-                  >
-                    D
-                  </div>
-                  <div
-                    class="rule-chip"
-                    draggable="true"
-                    data-type="indicator"
-                    data-field="J"
-                  >
-                    J
-                  </div>
-                  <div
-                    class="rule-chip"
-                    draggable="true"
-                    data-type="indicator"
-                    data-field="Bias"
-                  >
-                    Bias
-                  </div>
-                </div>
-              </div>
-
-              <!-- 右邊：條件句列表 -->
-              <div class="rule-sentences">
-                <!-- 標題 + 新增按鈕 + AND/OR pill 同一行 -->
-                <div class="rule-header-row">
-                  <div class="rule-sentences-header">
-                    <span>條件句</span>
-                  </div>
-
-                  <!-- 新增按鈕 + AND/OR pill -->
-                  <div class="rule-toolbar">
-                    <button
-                      type="button"
-                      class="btn-secondary2"
-                      id="addConditionRowBtn"
-                    >
-                      + 新增條件
-                    </button>
-
-                    <!-- AND / OR 選擇，外觀是 pill，實際值存在 hidden input -->
-                    <div class="logic-toggle" id="globalLogicToggle">
-                      <button
-                        type="button"
-                        class="logic-option active"
-                        data-value="AND"
-                      >
-                        AND
-                      </button>
-                      <button
-                        type="button"
-                        class="logic-option"
-                        data-value="OR"
-                      >
-                        OR
-                      </button>
-                    </div>
-
-                    <!-- 給 JS 用的隱藏欄位 -->
-                    <input type="hidden" id="globalLogic" value="AND" />
-                  </div>
-                </div>
-
-                <!-- 條件句橫向捲動區 -->
-                <div class="rule-list-scroll">
-                  <div id="conditionRowsContainer"></div>
-                </div>
-
-                <!-- 沒有任何條件成立時的通知文字 -->
-                <div id="conditionNoHitMsg" class="condition-nohit-msg" style="display: none;"></div>
-                
-                <!-- 底下：清除 / 套用 -->
-                <div class="rule-actions-row">
-                  <button
-                    type="button"
-                    class="btn-secondary"
-                    id="clearConditionsBtn"
-                  >
-                    清除條件
-                  </button>
-                  <button
-                    type="button"
-                    class="btn-secondary"
-                    id="applyConditionsBtn"
-                  >
-                    套用條件
-                  </button>
-                </div>
-              </div>
-
-
+            <h3>條件判斷</h3>
+            <div class="checkbox-group">
+              <!-- 同樣，把原本 rule-check 全部搬過來 -->
+              <label
+                ><input class="rule-check" type="checkbox" value="sma-cross" />
+                SMA 5 &gt; SMA 20</label
+              >
+              <label>
+                <input class="rule-check" type="checkbox" value="three-red" />
+                連續三天紅柱
+              </label>
+              <label>
+                <input
+                  class="rule-check"
+                  type="checkbox"
+                  value="three-down-volume"
+                />
+                成交量連降三天
+              </label>
+              <label
+                ><input
+                  class="rule-check"
+                  type="checkbox"
+                  value="dif-above-dea"
+                />
+                MACD：DIF突破DEA</label
+              >
+              <label
+                ><input
+                  class="rule-check"
+                  type="checkbox"
+                  value="dea-below-dif"
+                />
+                MACD：DEA跌破DIF</label
+              >
+              <label
+                ><input class="rule-check" type="checkbox" value="kd-cross" />
+                K上穿D 且 K&lt;20</label
+              >
+              <label
+                ><input class="rule-check" type="checkbox" value="bias-high" />
+                Bias &gt; 5</label
+              >
+              <label
+                ><input class="rule-check" type="checkbox" value="bias-low" />
+                Bias &lt; -5</label
+              >
             </div>
           </div>
-
         </div>
 
       <!--  圖表：K 線 + 成交量，滿版寬度上下疊 -->
@@ -508,6 +334,9 @@
         <div id="volumeChart"></div>
       </div>
     </div>
+
+    
+    
 
     <script src="/static/app.js"></script>
   </body>

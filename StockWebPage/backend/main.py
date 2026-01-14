@@ -191,6 +191,7 @@ def suggest(
             cur.close(); cn.close()
         except:
             pass
+
 @app.get("/api/signal_prediction/{symbol}")
 def get_signal_prediction(symbol: str):
     """
@@ -289,6 +290,78 @@ def get_prediction(
             cn.close()
         except:
             pass
+@app.get("/api/history_prediction/{symbol}/{base_date}")
+def get_history_prediction(symbol: str, base_date: str):
+    """
+    從 history_prediction 中取得某 symbol 在某個基準日的 30 天預測結果。
+    - symbol: 股票代號
+    - base_date: 該筆預測的基準日期（CSV 的 date 欄位）
+    
+    回傳格式：
+    {
+      "symbol": "AAPL",
+      "base_date": "2025-01-03",
+      "count": 30,
+      "predictions": [
+         { "date": "2025-01-04", "day_index": 1, "dir": "up" },
+         { "date": "2025-01-05", "day_index": 2, "dir": "down" },
+         ...
+      ]
+    }
+    """
+    # 驗證日期格式
+    try:
+        base_dt = date.fromisoformat(base_date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid base_date format. Use YYYY-MM-DD.")
+
+    sql = """
+        SELECT symbol, pred_date, day_index, dir
+        FROM history_prediction
+        WHERE symbol = %s
+          AND pred_date BETWEEN %s AND DATE_ADD(%s, INTERVAL 30 DAY)
+        ORDER BY day_index ASC
+    """
+
+    try:
+        cn = pool.get_connection()
+        cur = cn.cursor(dictionary=True)
+
+        cur.execute(sql, (symbol, base_date, base_date))
+        rows = cur.fetchall()
+
+        if not rows:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No history prediction for symbol={symbol} base_date={base_date}"
+            )
+
+        predictions = [
+            {
+                "date": row["pred_date"].isoformat(),
+                "day_index": row["day_index"],
+                "dir": row["dir"]
+            }
+            for row in rows
+        ]
+
+        return {
+            "symbol": symbol,
+            "base_date": base_date,
+            "count": len(predictions),
+            "predictions": predictions
+        }
+
+    except mysql.connector.Error as e:
+        raise HTTPException(status_code=500, detail=f"MySQL error: {e}")
+
+    finally:
+        try:
+            cur.close()
+            cn.close()
+        except:
+            pass
+
 
 
 
@@ -314,7 +387,7 @@ if __name__ == "__main__":
     PORT = int(os.getenv("PORT", "8000"))
     URL  = f"http://{HOST}:{PORT}/"
 
-    # 啟動前先測一次 DB，失敗就不要啟動http://140.136.151.86/（你也可以改成只印警告）
+    # 啟動前先測一次 DB，失敗就不要啟動 http://140.136.151.86/（你也可以改成只印警告）
     try:
         cn = pool.get_connection()
         with cn.cursor() as cur:
